@@ -341,16 +341,35 @@ const AdminLogin = ({ onLogin }: { onLogin: (user: User) => void }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-    if (data.success) {
-      onLogin(data.user);
-    } else {
-      setError(data.message);
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          onLogin(data.user);
+          return;
+        }
+      }
+      
+      // If API fails or returns error, try client-side fallback for static sites (Netlify)
+      if (username === 'sm4798' && password === '1806322') {
+        console.warn("API login failed, using client-side fallback (Static Mode)");
+        onLogin({ username: 'sm4798' });
+      } else {
+        setError('아이디 또는 비밀번호가 올바르지 않습니다.');
+      }
+    } catch (err) {
+      // Network error (likely no backend)
+      if (username === 'sm4798' && password === '1806322') {
+        onLogin({ username: 'sm4798' });
+      } else {
+        setError('아이디 또는 비밀번호가 올바르지 않습니다.');
+      }
     }
   };
 
@@ -413,6 +432,12 @@ const AdminDashboard = ({
   const [newPost, setNewPost] = useState({ type: 'notice', title: '', content: '', image_url: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isStaticMode, setIsStaticMode] = useState(false);
+
+  useEffect(() => {
+    // Check if API is available
+    fetch('/api/settings').catch(() => setIsStaticMode(true));
+  }, []);
 
   const handleSaveSettings = async () => {
     setIsSaving(true);
@@ -428,10 +453,18 @@ const AdminDashboard = ({
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        alert('설정 저장 중 오류가 발생했습니다.');
+        if (isStaticMode) {
+          alert('현재 정적 페이지(Netlify) 모드입니다. 수정한 내용을 반영하려면 GitHub에 JSON 파일을 업데이트해야 합니다.');
+        } else {
+          alert('설정 저장 중 오류가 발생했습니다.');
+        }
       }
     } catch (error) {
-      alert('서버와 통신 중 오류가 발생했습니다.');
+      if (isStaticMode) {
+        alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 저장이 불가능합니다.');
+      } else {
+        alert('서버와 통신 중 오류가 발생했습니다.');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -440,17 +473,29 @@ const AdminDashboard = ({
   const handleAddPost = async () => {
     setIsSaving(true);
     try {
-      await fetch('/api/posts', {
+      const res = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newPost)
       });
-      setNewPost({ type: 'notice', title: '', content: '', image_url: '' });
-      onUpdatePosts();
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      if (res.ok) {
+        setNewPost({ type: 'notice', title: '', content: '', image_url: '' });
+        onUpdatePosts();
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        if (isStaticMode) {
+          alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 저장이 불가능합니다.');
+        } else {
+          alert('게시글 등록 중 오류가 발생했습니다.');
+        }
+      }
     } catch (error) {
-      alert('게시글 등록 중 오류가 발생했습니다.');
+      if (isStaticMode) {
+        alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 저장이 불가능합니다.');
+      } else {
+        alert('게시글 등록 중 오류가 발생했습니다.');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -468,6 +513,11 @@ const AdminDashboard = ({
       <header className="h-16 border-b border-white/10 flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
           <h1 className="font-bold text-lg">Admin Dashboard</h1>
+          {isStaticMode && (
+            <span className="text-amber-500 text-xs font-medium bg-amber-500/10 px-2 py-0.5 rounded flex items-center gap-1">
+              ⚠️ 정적 페이지 모드 (저장 불가)
+            </span>
+          )}
           <div className="flex gap-2 ml-8">
             <button 
               onClick={() => setActiveTab('cms')}
