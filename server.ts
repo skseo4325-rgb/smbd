@@ -4,9 +4,13 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
+// Paths for JSON data (Git-friendly)
+const SETTINGS_FILE = path.resolve("settings.json");
+const POSTS_FILE = path.resolve("posts.json");
+
 const db = new Database("database.sqlite");
 
-// Initialize Database
+// Initialize Database (SQLite remains for local fast access, but we sync to JSON)
 db.exec(`
   CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
@@ -29,7 +33,54 @@ db.exec(`
   );
 `);
 
-// Seed initial data
+// Helper to sync SQLite to JSON
+function syncToJson() {
+  try {
+    const settingsRows = db.prepare("SELECT * FROM settings").all() as { key: string, value: string }[];
+    const settings = settingsRows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {});
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+
+    const posts = db.prepare("SELECT * FROM posts ORDER BY created_at DESC").all();
+    fs.writeFileSync(POSTS_FILE, JSON.stringify(posts, null, 2));
+    console.log("Data synced to JSON files for GitHub tracking.");
+  } catch (err) {
+    console.error("Error syncing to JSON:", err);
+  }
+}
+
+// Helper to load from JSON if SQLite is empty (e.g. on fresh clone)
+function loadFromJson() {
+  if (fs.existsSync(SETTINGS_FILE)) {
+    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf-8"));
+    const insert = db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)");
+    const transaction = db.transaction((data) => {
+      for (const [key, value] of Object.entries(data)) {
+        insert.run(key, value as string);
+      }
+    });
+    transaction(settings);
+  }
+
+  if (fs.existsSync(POSTS_FILE)) {
+    const posts = JSON.parse(fs.readFileSync(POSTS_FILE, "utf-8"));
+    // Only load if DB is empty to avoid duplicates
+    const count = (db.prepare("SELECT COUNT(*) as count FROM posts").get() as any).count;
+    if (count === 0) {
+      const insert = db.prepare("INSERT INTO posts (id, type, title, content, image_url, created_at) VALUES (?, ?, ?, ?, ?, ?)");
+      const transaction = db.transaction((data) => {
+        for (const post of data) {
+          insert.run(post.id, post.type, post.title, post.content, post.image_url, post.created_at);
+        }
+      });
+      transaction(posts);
+    }
+  }
+}
+
+// Initial Load
+loadFromJson();
+
+// Seed initial data if still empty
 const insertSetting = db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)");
 insertSetting.run("site_name", "승민산업벤딩");
 insertSetting.run("primary_color", "#3b82f6"); // Blue-500
@@ -62,6 +113,9 @@ insertSetting.run("service3_title", "금속 구조물 가공");
 insertSetting.run("service3_desc", "복잡한 금속 구조물의 벤딩 및 용접, 정밀 가공 솔루션을 지원합니다.");
 insertSetting.run("service3_img", "https://images.unsplash.com/photo-1565608087341-404b254587c3?auto=format&fit=crop&q=80&w=800");
 
+// Initial Sync to JSON
+syncToJson();
+
 const userCount = db.prepare("SELECT COUNT(*) as count FROM users").get() as { count: number };
 if (userCount.count === 0) {
   db.prepare("INSERT INTO users (username, password) VALUES (?, ?)").run("sm4798", "1806322");
@@ -89,6 +143,7 @@ async function startServer() {
       }
     });
     transaction(settings);
+    syncToJson(); // Sync to JSON for GitHub
     res.json({ success: true });
   });
 
@@ -106,6 +161,7 @@ async function startServer() {
   app.post("/api/posts", (req, res) => {
     const { type, title, content, image_url } = req.body;
     const result = db.prepare("INSERT INTO posts (type, title, content, image_url) VALUES (?, ?, ?, ?)").run(type, title, content, image_url);
+    syncToJson(); // Sync to JSON for GitHub
     res.json({ id: result.lastInsertRowid });
   });
 
@@ -113,12 +169,14 @@ async function startServer() {
     const { id } = req.params;
     const { title, content, image_url } = req.body;
     db.prepare("UPDATE posts SET title = ?, content = ?, image_url = ? WHERE id = ?").run(title, content, image_url, id);
+    syncToJson(); // Sync to JSON for GitHub
     res.json({ success: true });
   });
 
   app.delete("/api/posts/:id", (req, res) => {
     const { id } = req.params;
     db.prepare("DELETE FROM posts WHERE id = ?").run(id);
+    syncToJson(); // Sync to JSON for GitHub
     res.json({ success: true });
   });
 

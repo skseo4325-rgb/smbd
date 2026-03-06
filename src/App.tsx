@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Menu, X, ChevronRight, Settings, LogOut, Plus, Trash2, Edit2, 
   LayoutDashboard, FileText, Package, Image as ImageIcon, Globe,
-  Instagram, Facebook, Youtube, Phone, Mail, MapPin
+  Instagram, Facebook, Youtube, Phone, Mail, MapPin, Check
 } from 'lucide-react';
 import { SiteSettings, Post, User } from './types';
 
@@ -412,9 +412,11 @@ const AdminDashboard = ({
   const [editingSettings, setEditingSettings] = useState(settings);
   const [newPost, setNewPost] = useState({ type: 'notice', title: '', content: '', image_url: '' });
   const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const handleSaveSettings = async () => {
     setIsSaving(true);
+    setSaveSuccess(false);
     try {
       const res = await fetch('/api/settings', {
         method: 'POST',
@@ -423,7 +425,8 @@ const AdminDashboard = ({
       });
       if (res.ok) {
         onUpdateSettings(editingSettings);
-        alert('설정이 성공적으로 저장되었습니다.');
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
       } else {
         alert('설정 저장 중 오류가 발생했습니다.');
       }
@@ -435,14 +438,22 @@ const AdminDashboard = ({
   };
 
   const handleAddPost = async () => {
-    await fetch('/api/posts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newPost)
-    });
-    setNewPost({ type: 'notice', title: '', content: '', image_url: '' });
-    onUpdatePosts();
-    alert('게시글이 등록되었습니다.');
+    setIsSaving(true);
+    try {
+      await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPost)
+      });
+      setNewPost({ type: 'notice', title: '', content: '', image_url: '' });
+      onUpdatePosts();
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      alert('게시글 등록 중 오류가 발생했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDeletePost = async (id: number) => {
@@ -513,7 +524,24 @@ const AdminDashboard = ({
                   placeholder="내용" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 mb-4" rows={4}
                   value={newPost.content} onChange={(e) => setNewPost({...newPost, content: e.target.value})}
                 ></textarea>
-                <button onClick={handleAddPost} className="bg-blue-600 px-8 py-3 rounded-lg font-bold">등록하기</button>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={handleAddPost} 
+                    disabled={isSaving}
+                    className={`bg-blue-600 px-8 py-3 rounded-lg font-bold transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                  >
+                    {isSaving ? '등록 중...' : '등록하기'}
+                  </button>
+                  {saveSuccess && (
+                    <motion.span 
+                      initial={{ opacity: 0, x: -10 }} 
+                      animate={{ opacity: 1, x: 0 }} 
+                      className="text-emerald-500 font-bold flex items-center gap-2"
+                    >
+                      <Check size={18} /> 등록 완료! (GitHub 동기화됨)
+                    </motion.span>
+                  )}
+                </div>
               </section>
 
               <section>
@@ -666,13 +694,24 @@ const AdminDashboard = ({
                   value={editingSettings.hero_subtitle} onChange={(e) => setEditingSettings({...editingSettings, hero_subtitle: e.target.value})}
                 ></textarea>
               </div>
-              <button 
-                onClick={handleSaveSettings} 
-                disabled={isSaving}
-                className={`bg-blue-600 px-8 py-3 rounded-lg font-bold transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
-              >
-                {isSaving ? '저장 중...' : '설정 저장'}
-              </button>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={handleSaveSettings} 
+                  disabled={isSaving}
+                  className={`bg-blue-600 px-8 py-3 rounded-lg font-bold transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                >
+                  {isSaving ? '저장 중...' : '설정 저장'}
+                </button>
+                {saveSuccess && (
+                  <motion.span 
+                    initial={{ opacity: 0, x: -10 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    className="text-emerald-500 font-bold flex items-center gap-2"
+                  >
+                    <Check size={18} /> 저장 완료! (GitHub 동기화됨)
+                  </motion.span>
+                )}
+              </div>
             </div>
           )}
 
@@ -693,13 +732,24 @@ const AdminDashboard = ({
                   value={editingSettings.seo_description} onChange={(e) => setEditingSettings({...editingSettings, seo_description: e.target.value})}
                 ></textarea>
               </div>
-              <button 
-                onClick={handleSaveSettings} 
-                disabled={isSaving}
-                className={`bg-blue-600 px-8 py-3 rounded-lg font-bold transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
-              >
-                {isSaving ? '저장 중...' : 'SEO 설정 저장'}
-              </button>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={handleSaveSettings} 
+                  disabled={isSaving}
+                  className={`bg-blue-600 px-8 py-3 rounded-lg font-bold transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                >
+                  {isSaving ? '저장 중...' : 'SEO 설정 저장'}
+                </button>
+                {saveSuccess && (
+                  <motion.span 
+                    initial={{ opacity: 0, x: -10 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    className="text-emerald-500 font-bold flex items-center gap-2"
+                  >
+                    <Check size={18} /> 저장 완료! (GitHub 동기화됨)
+                  </motion.span>
+                )}
+              </div>
             </div>
           )}
         </div>
