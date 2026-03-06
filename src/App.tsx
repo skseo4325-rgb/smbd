@@ -766,20 +766,59 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
 
+  const [error, setError] = useState<string | null>(null);
+
   const fetchData = async () => {
-    const [sRes, pRes] = await Promise.all([
-      fetch('/api/settings'),
-      fetch('/api/posts')
-    ]);
-    setSettings(await sRes.json());
-    setPosts(await pRes.json());
+    try {
+      const [sRes, pRes] = await Promise.all([
+        fetch('/api/settings'),
+        fetch('/api/posts')
+      ]);
+      
+      if (!sRes.ok || !pRes.ok) {
+        throw new Error('API request failed');
+      }
+
+      setSettings(await sRes.json());
+      setPosts(await pRes.json());
+    } catch (err) {
+      console.warn("API failed, falling back to static JSON files (Netlify/Static mode):", err);
+      try {
+        const [sRes, pRes] = await Promise.all([
+          fetch('/settings.json'),
+          fetch('/posts.json')
+        ]);
+        
+        if (sRes.ok) {
+          setSettings(await sRes.json());
+        } else {
+          throw new Error('Static settings not found');
+        }
+        if (pRes.ok) setPosts(await pRes.json());
+      } catch (fallbackErr) {
+        console.error("Static fallback failed:", fallbackErr);
+        setError("데이터를 불러오는 데 실패했습니다. 네트워크 연결을 확인해 주세요.");
+      }
+    }
   };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  if (!settings) return <div className="h-screen flex items-center justify-center">Loading...</div>;
+  if (error) return (
+    <div className="h-screen flex flex-col items-center justify-center gap-4 bg-black text-white">
+      <p className="text-xl font-bold text-red-500">{error}</p>
+      <button onClick={() => window.location.reload()} className="bg-blue-600 px-6 py-2 rounded-full">다시 시도</button>
+    </div>
+  );
+
+  if (!settings) return (
+    <div className="h-screen flex flex-col items-center justify-center gap-4 bg-black text-white">
+      <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <p className="text-white/60 animate-pulse">데이터를 불러오는 중입니다...</p>
+    </div>
+  );
 
   return (
     <div className="min-h-screen font-sans">

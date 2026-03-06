@@ -4,9 +4,9 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
-// Paths for JSON data (Git-friendly)
-const SETTINGS_FILE = path.resolve("settings.json");
-const POSTS_FILE = path.resolve("posts.json");
+// Paths for JSON data (Git-friendly and Netlify-friendly)
+const SETTINGS_FILE = path.resolve("public/settings.json");
+const POSTS_FILE = path.resolve("public/posts.json");
 
 const db = new Database("database.sqlite");
 
