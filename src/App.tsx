@@ -69,10 +69,13 @@ const Hero = ({ settings }: { settings: SiteSettings }) => (
   <section id="home" className="relative h-screen flex items-center justify-center overflow-hidden luxury-gradient">
     <div className="absolute inset-0 z-0">
       <img 
-        src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=2070" 
+        src={settings.hero_bg_url || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=2070"} 
         alt="Industrial" 
         className="w-full h-full object-cover opacity-30"
         referrerPolicy="no-referrer"
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=2070";
+        }}
       />
     </div>
     <div className="relative z-10 max-w-4xl mx-auto text-center px-6">
@@ -801,6 +804,24 @@ const AdminDashboard = ({
                   type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
                   value={editingSettings.hero_title} onChange={(e) => setEditingSettings({...editingSettings, hero_title: e.target.value})}
                 />
+              </div>
+              <div className="space-y-4">
+                <label className="text-xs font-bold text-white/40 uppercase">히어로 배경 이미지 URL</label>
+                <div className="flex gap-4 items-center">
+                  <div className="w-24 h-12 rounded bg-black flex items-center justify-center overflow-hidden border border-white/10">
+                    <img 
+                      src={editingSettings.hero_bg_url} 
+                      className="w-full h-full object-cover" 
+                      referrerPolicy="no-referrer"
+                      onError={(e) => (e.target as HTMLImageElement).src = 'https://placehold.co/400x225/111/fff?text=No+Image'}
+                    />
+                  </div>
+                  <input 
+                    type="text" className="flex-1 bg-zinc-900 border border-white/10 rounded-lg p-3"
+                    value={editingSettings.hero_bg_url} onChange={(e) => setEditingSettings({...editingSettings, hero_bg_url: e.target.value})}
+                    placeholder="배경 이미지 URL을 입력하세요"
+                  />
+                </div>
               </div>
               <div className="space-y-4">
                 <label className="text-xs font-bold text-white/40 uppercase">히어로 서브타이틀</label>

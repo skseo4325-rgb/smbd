@@ -6,6 +6,7 @@ export interface SiteSettings {
   bg_color: string;
   hero_title: string;
   hero_subtitle: string;
+  hero_bg_url: string;
   seo_title: string;
   seo_description: string;
   company_phone: string;

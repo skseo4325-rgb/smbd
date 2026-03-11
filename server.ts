@@ -87,6 +87,7 @@ insertSetting.run("primary_color", "#3b82f6"); // Blue-500
 insertSetting.run("bg_color", "#000000"); // Black
 insertSetting.run("hero_title", "최고의 기술력, 완벽한 벤딩 솔루션");
 insertSetting.run("hero_subtitle", "승민산업벤딩은 파이프 벤딩 및 기계 제작 분야의 선두주자입니다.");
+insertSetting.run("hero_bg_url", "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=2070");
 insertSetting.run("seo_title", "승민산업벤딩 - 벤딩기계 및 가공 전문");
 insertSetting.run("seo_description", "벤딩기계 제작 및 파이프 벤딩 가공 전문 업체 승민산업벤딩입니다.");
 
