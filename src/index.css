@@ -5,12 +5,30 @@
   --font-sans: "Inter", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
 }
 
+:root {
+  --primary-color: #3b82f6;
+  --bg-color: #000000;
+}
+
 body {
-  @apply bg-black text-white antialiased;
+  background-color: var(--bg-color);
+  @apply text-white antialiased;
 }
 
 .luxury-gradient {
-  background: radial-gradient(circle at 50% 30%, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--primary-color), transparent 85%) 0%, transparent 70%);
+}
+
+.text-primary {
+  color: var(--primary-color);
+}
+
+.bg-primary {
+  background-color: var(--primary-color);
+}
+
+.border-primary {
+  border-color: var(--primary-color);
 }
 
 .glass-panel {

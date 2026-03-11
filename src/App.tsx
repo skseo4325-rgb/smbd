@@ -20,7 +20,7 @@ const Navbar = ({ settings, onAdminClick }: { settings: SiteSettings, onAdminCli
             <img src={settings.logo_url} alt={settings.site_name} className="h-10 object-contain" referrerPolicy="no-referrer" />
           ) : (
             <>
-              <div className="w-8 h-8 bg-blue-600 rounded-sm rotate-45 flex items-center justify-center">
+              <div className="w-8 h-8 bg-primary rounded-sm rotate-45 flex items-center justify-center">
                 <span className="text-white font-black -rotate-45">S</span>
               </div>
               {settings.site_name}
@@ -29,10 +29,10 @@ const Navbar = ({ settings, onAdminClick }: { settings: SiteSettings, onAdminCli
         </div>
         
         <div className="hidden md:flex items-center gap-8 text-sm font-medium uppercase tracking-widest">
-          <a href="#home" className="hover:text-blue-500 transition-colors">홈</a>
-          <a href="#services" className="hover:text-blue-500 transition-colors">서비스</a>
-          <a href="#portfolio" className="hover:text-blue-500 transition-colors">포트폴리오</a>
-          <a href="#contact" className="hover:text-blue-500 transition-colors">문의하기</a>
+          <a href="#home" className="hover:text-primary transition-colors">홈</a>
+          <a href="#services" className="hover:text-primary transition-colors">서비스</a>
+          <a href="#portfolio" className="hover:text-primary transition-colors">포트폴리오</a>
+          <a href="#contact" className="hover:text-primary transition-colors">문의하기</a>
           <button onClick={onAdminClick} className="p-2 hover:bg-white/10 rounded-full transition-colors">
             <Settings size={18} />
           </button>
@@ -71,7 +71,7 @@ const Hero = ({ settings }: { settings: SiteSettings }) => (
       <img 
         src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=2070" 
         alt="Industrial" 
-        className="w-full h-full object-cover opacity-30 grayscale"
+        className="w-full h-full object-cover opacity-30"
         referrerPolicy="no-referrer"
       />
     </div>
@@ -81,7 +81,7 @@ const Hero = ({ settings }: { settings: SiteSettings }) => (
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
       >
-        <span className="text-blue-500 font-semibold tracking-[0.3em] uppercase mb-4 block">Premium Bending Solutions</span>
+        <span className="text-primary font-semibold tracking-[0.3em] uppercase mb-4 block">Premium Bending Solutions</span>
         <h1 className="text-5xl md:text-8xl font-bold tracking-tighter mb-8 leading-tight">
           {settings.hero_title}
         </h1>
@@ -89,7 +89,7 @@ const Hero = ({ settings }: { settings: SiteSettings }) => (
           {settings.hero_subtitle}
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <a href="#contact" className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-full font-bold transition-all transform hover:scale-105">
+          <a href="#contact" className="bg-primary hover:opacity-90 text-white px-10 py-4 rounded-full font-bold transition-all transform hover:scale-105">
             상담 신청하기
           </a>
           <a href="#portfolio" className="border border-white/20 hover:bg-white/10 text-white px-10 py-4 rounded-full font-bold transition-all">
@@ -113,7 +113,7 @@ const Services = ({ settings }: { settings: SiteSettings }) => {
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
           <div>
-            <span className="text-blue-500 font-mono text-sm mb-2 block">01 / OUR SERVICES</span>
+            <span className="text-primary font-mono text-sm mb-2 block">01 / OUR SERVICES</span>
             <h2 className="text-4xl md:text-6xl font-bold tracking-tighter">전문적인 기술 서비스</h2>
           </div>
           <p className="text-white/50 max-w-md">
@@ -128,8 +128,16 @@ const Services = ({ settings }: { settings: SiteSettings }) => {
               whileHover={{ y: -10 }}
               className="group relative overflow-hidden rounded-2xl bg-zinc-900 border border-white/5"
             >
-              <div className="aspect-[4/5] overflow-hidden">
-                <img src={s.img} alt={s.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" referrerPolicy="no-referrer" />
+              <div className="aspect-[4/5] overflow-hidden bg-zinc-900">
+                <img 
+                  src={s.img} 
+                  alt={s.title} 
+                  className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110" 
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${s.title}/800/1000`;
+                  }}
+                />
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent p-8 flex flex-col justify-end">
                 <h3 className="text-2xl font-bold mb-2">{s.title}</h3>
@@ -150,16 +158,24 @@ const Portfolio = ({ posts }: { posts: Post[] }) => {
     <section id="portfolio" className="py-24 bg-black">
       <div className="max-w-7xl mx-auto px-6">
         <div className="mb-16">
-          <span className="text-blue-500 font-mono text-sm mb-2 block">02 / PORTFOLIO</span>
+          <span className="text-primary font-mono text-sm mb-2 block">02 / PORTFOLIO</span>
           <h2 className="text-4xl md:text-6xl font-bold tracking-tighter">작업 결과물</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {portfolioItems.length > 0 ? (
             portfolioItems.map((item) => (
-              <div key={item.id} className="relative aspect-square overflow-hidden group rounded-lg">
-                <img src={item.image_url} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" referrerPolicy="no-referrer" />
-                <div className="absolute inset-0 bg-blue-600/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-6 text-center">
+              <div key={item.id} className="relative aspect-square overflow-hidden group rounded-lg bg-zinc-900">
+                <img 
+                  src={item.image_url} 
+                  alt={item.title} 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${item.id}/800/800`;
+                  }}
+                />
+                <div className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-6 text-center">
                   <h3 className="text-xl font-bold mb-2">{item.title}</h3>
                   <p className="text-sm line-clamp-3">{item.content}</p>
                 </div>
@@ -210,7 +226,7 @@ const Contact = ({ settings }: { settings: SiteSettings }) => {
     <section id="contact" className="py-24 bg-zinc-950">
       <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16">
         <div>
-          <span className="text-blue-500 font-mono text-sm mb-2 block">03 / CONTACT</span>
+          <span className="text-primary font-mono text-sm mb-2 block">03 / CONTACT</span>
           <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-8">프로젝트 문의</h2>
           <p className="text-white/60 mb-12">
             기술적인 상담이나 견적 문의가 필요하신가요? 아래 연락처로 문의해 주시면 전문가가 친절히 답변해 드립니다.
@@ -218,7 +234,7 @@ const Contact = ({ settings }: { settings: SiteSettings }) => {
           
           <div className="space-y-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-500">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
                 <Phone size={20} />
               </div>
               <div>
@@ -227,7 +243,7 @@ const Contact = ({ settings }: { settings: SiteSettings }) => {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-500">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
                 <Mail size={20} />
               </div>
               <div>
@@ -236,7 +252,7 @@ const Contact = ({ settings }: { settings: SiteSettings }) => {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-500">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
                 <MapPin size={20} />
               </div>
               <div>
@@ -257,7 +273,7 @@ const Contact = ({ settings }: { settings: SiteSettings }) => {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-blue-500 outline-none transition-colors" 
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-primary outline-none transition-colors" 
                   placeholder="홍길동" 
                 />
               </div>
@@ -268,7 +284,7 @@ const Contact = ({ settings }: { settings: SiteSettings }) => {
                   required
                   value={formData.phone}
                   onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-blue-500 outline-none transition-colors" 
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-primary outline-none transition-colors" 
                   placeholder="010-0000-0000" 
                 />
               </div>
@@ -280,7 +296,7 @@ const Contact = ({ settings }: { settings: SiteSettings }) => {
                 required
                 value={formData.message}
                 onChange={(e) => setFormData({...formData, message: e.target.value})}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-blue-500 outline-none transition-colors" 
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-primary outline-none transition-colors" 
                 placeholder="문의하실 내용을 입력해주세요."
               ></textarea>
             </div>
@@ -289,7 +305,7 @@ const Contact = ({ settings }: { settings: SiteSettings }) => {
               type="submit"
               disabled={status === 'submitting'}
               className={`w-full py-4 rounded-lg font-bold transition-all ${
-                status === 'submitting' ? 'bg-blue-800 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                status === 'submitting' ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:opacity-90'
               }`}
             >
               {status === 'submitting' ? '전송 중...' : '문의 보내기'}
@@ -390,7 +406,7 @@ const AdminLogin = ({ onLogin }: { onLogin: (user: User) => void }) => {
               type="text" 
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-blue-500" 
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-primary" 
               required
             />
           </div>
@@ -400,12 +416,12 @@ const AdminLogin = ({ onLogin }: { onLogin: (user: User) => void }) => {
               type="password" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-blue-500" 
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-primary" 
               required
             />
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button className="w-full bg-blue-600 py-4 rounded-lg font-bold">로그인</button>
+          <button className="w-full bg-primary py-4 rounded-lg font-bold hover:opacity-90 transition-all">로그인</button>
         </form>
       </motion.div>
     </div>
@@ -442,28 +458,39 @@ const AdminDashboard = ({
   const handleSaveSettings = async () => {
     setIsSaving(true);
     setSaveSuccess(false);
+    
+    // Always save to LocalStorage for immediate persistence and static mode support
+    localStorage.setItem('site_settings', JSON.stringify(editingSettings));
+    
     try {
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settings: editingSettings })
       });
+      
       if (res.ok) {
         onUpdateSettings(editingSettings);
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
+        // Even if API fails, we've saved to LocalStorage
+        onUpdateSettings(editingSettings);
         if (isStaticMode) {
-          alert('현재 정적 페이지(Netlify) 모드입니다. 수정한 내용을 반영하려면 GitHub에 JSON 파일을 업데이트해야 합니다.');
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 3000);
+          console.log('Saved to LocalStorage (Static Mode)');
         } else {
-          alert('설정 저장 중 오류가 발생했습니다.');
+          alert('서버 저장 중 오류가 발생했습니다. (브라우저에는 임시 저장됨)');
         }
       }
     } catch (error) {
+      onUpdateSettings(editingSettings);
       if (isStaticMode) {
-        alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 저장이 불가능합니다.');
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        alert('서버와 통신 중 오류가 발생했습니다.');
+        alert('서버와 통신할 수 없습니다. (브라우저에는 임시 저장됨)');
       }
     } finally {
       setIsSaving(false);
@@ -600,8 +627,15 @@ const AdminDashboard = ({
                   {posts.map(post => (
                     <div key={post.id} className="glass-panel p-4 rounded-xl flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded bg-zinc-800 overflow-hidden">
-                          {post.image_url && <img src={post.image_url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />}
+                        <div className="w-12 h-12 rounded bg-zinc-800 overflow-hidden border border-white/10">
+                          {post.image_url && (
+                            <img 
+                              src={post.image_url} 
+                              className="w-full h-full object-cover" 
+                              referrerPolicy="no-referrer" 
+                              onError={(e) => (e.target as HTMLImageElement).src = 'https://placehold.co/100x100/111/fff?text=Error'}
+                            />
+                          )}
                         </div>
                         <div>
                           <span className="text-[10px] uppercase font-bold text-blue-500">{post.type}</span>
@@ -633,11 +667,21 @@ const AdminDashboard = ({
                 </div>
                 <div className="space-y-4">
                   <label className="text-xs font-bold text-white/40 uppercase">로고 URL</label>
-                  <input 
-                    type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
-                    value={editingSettings.logo_url} onChange={(e) => setEditingSettings({...editingSettings, logo_url: e.target.value})}
-                    placeholder="이미지 URL을 입력하세요"
-                  />
+                  <div className="flex gap-4 items-center">
+                    <div className="w-12 h-12 rounded bg-white/5 flex items-center justify-center overflow-hidden border border-white/10">
+                      <img 
+                        src={editingSettings.logo_url} 
+                        className="max-w-full max-h-full object-contain" 
+                        referrerPolicy="no-referrer"
+                        onError={(e) => (e.target as HTMLImageElement).src = 'https://placehold.co/100x100/111/fff?text=Logo'}
+                      />
+                    </div>
+                    <input 
+                      type="text" className="flex-1 bg-zinc-900 border border-white/10 rounded-lg p-3"
+                      value={editingSettings.logo_url} onChange={(e) => setEditingSettings({...editingSettings, logo_url: e.target.value})}
+                      placeholder="이미지 URL을 입력하세요"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -671,6 +715,14 @@ const AdminDashboard = ({
                   {[1, 2, 3].map(num => (
                     <div key={num} className="space-y-4 p-4 bg-white/5 rounded-xl">
                       <p className="text-sm font-bold">서비스 {num}</p>
+                      <div className="aspect-video rounded-lg overflow-hidden bg-black mb-2">
+                        <img 
+                          src={editingSettings[`service${num}_img`]} 
+                          className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer"
+                          onError={(e) => (e.target as HTMLImageElement).src = 'https://placehold.co/400x225/111/fff?text=No+Image'}
+                        />
+                      </div>
                       <input 
                         type="text" placeholder="제목" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-sm"
                         value={editingSettings[`service${num}_title`]} onChange={(e) => setEditingSettings({...editingSettings, [`service${num}_title`]: e.target.value})}
@@ -717,15 +769,28 @@ const AdminDashboard = ({
 
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-4">
-                  <label className="text-xs font-bold text-white/40 uppercase">포인트 컬러</label>
+                  <label className="text-xs font-bold text-white/40 uppercase">포인트 컬러 (Primary)</label>
                   <div className="flex gap-2">
                     <input 
-                      type="color" className="h-12 w-12 bg-transparent border-none"
-                      value={editingSettings.primary_color} onChange={(e) => setEditingSettings({...editingSettings, primary_color: e.target.value})}
+                      type="color" className="h-12 w-12 bg-transparent border-none cursor-pointer"
+                      value={editingSettings.primary_color || '#3b82f6'} onChange={(e) => setEditingSettings({...editingSettings, primary_color: e.target.value})}
                     />
                     <input 
                       type="text" className="flex-1 bg-zinc-900 border border-white/10 rounded-lg p-3"
-                      value={editingSettings.primary_color} onChange={(e) => setEditingSettings({...editingSettings, primary_color: e.target.value})}
+                      value={editingSettings.primary_color || '#3b82f6'} onChange={(e) => setEditingSettings({...editingSettings, primary_color: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <label className="text-xs font-bold text-white/40 uppercase">배경 컬러 (Background)</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="color" className="h-12 w-12 bg-transparent border-none cursor-pointer"
+                      value={editingSettings.bg_color || '#000000'} onChange={(e) => setEditingSettings({...editingSettings, bg_color: e.target.value})}
+                    />
+                    <input 
+                      type="text" className="flex-1 bg-zinc-900 border border-white/10 rounded-lg p-3"
+                      value={editingSettings.bg_color || '#000000'} onChange={(e) => setEditingSettings({...editingSettings, bg_color: e.target.value})}
                     />
                   </div>
                 </div>
@@ -819,6 +884,16 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
+    // 1. Try LocalStorage first for instant user-specific persistence
+    const localSettings = localStorage.getItem('site_settings');
+    if (localSettings) {
+      try {
+        setSettings(JSON.parse(localSettings));
+      } catch (e) {
+        console.error("Error parsing local settings", e);
+      }
+    }
+
     try {
       const [sRes, pRes] = await Promise.all([
         fetch('/api/settings'),
@@ -829,10 +904,13 @@ export default function App() {
         throw new Error('API request failed');
       }
 
-      setSettings(await sRes.json());
+      const serverSettings = await sRes.json();
+      setSettings(serverSettings);
+      // Sync local storage with server if server is available
+      localStorage.setItem('site_settings', JSON.stringify(serverSettings));
       setPosts(await pRes.json());
     } catch (err) {
-      console.warn("API failed, falling back to static JSON files (Netlify/Static mode):", err);
+      console.warn("API failed, falling back to static JSON files:", err);
       try {
         const [sRes, pRes] = await Promise.all([
           fetch('/settings.json'),
@@ -840,14 +918,20 @@ export default function App() {
         ]);
         
         if (sRes.ok) {
-          setSettings(await sRes.json());
+          const staticSettings = await sRes.json();
+          // Only use static if we don't already have local settings
+          if (!localStorage.getItem('site_settings')) {
+            setSettings(staticSettings);
+          }
         } else {
           throw new Error('Static settings not found');
         }
         if (pRes.ok) setPosts(await pRes.json());
       } catch (fallbackErr) {
         console.error("Static fallback failed:", fallbackErr);
-        setError("데이터를 불러오는 데 실패했습니다. 네트워크 연결을 확인해 주세요.");
+        if (!settings) {
+          setError("데이터를 불러오는 데 실패했습니다. 네트워크 연결을 확인해 주세요.");
+        }
       }
     }
   };
@@ -855,6 +939,23 @@ export default function App() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Dynamic Styling & SEO Persistence
+  useEffect(() => {
+    if (settings) {
+      // Apply dynamic colors to CSS variables
+      const root = document.documentElement;
+      root.style.setProperty('--primary-color', settings.primary_color || '#3b82f6');
+      root.style.setProperty('--bg-color', settings.bg_color || '#000000');
+      
+      // Update SEO
+      document.title = settings.seo_title || '승민산업벤딩';
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute('content', settings.seo_description || '');
+      }
+    }
+  }, [settings]);
 
   if (error) return (
     <div className="h-screen flex flex-col items-center justify-center gap-4 bg-black text-white">
