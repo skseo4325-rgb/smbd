@@ -917,8 +917,8 @@ export default function App() {
 
     try {
       const [sRes, pRes] = await Promise.all([
-        fetch('/api/settings'),
-        fetch('/api/posts')
+        fetch('api/settings'),
+        fetch('api/posts')
       ]);
       
       if (!sRes.ok || !pRes.ok) {
@@ -926,31 +926,36 @@ export default function App() {
       }
 
       const serverSettings = await sRes.json();
-      setSettings(serverSettings);
-      // Sync local storage with server if server is available
-      localStorage.setItem('site_settings', JSON.stringify(serverSettings));
-      setPosts(await pRes.json());
+      if (serverSettings && typeof serverSettings === 'object') {
+        setSettings(serverSettings);
+        localStorage.setItem('site_settings', JSON.stringify(serverSettings));
+      }
+      
+      const serverPosts = await pRes.json();
+      if (Array.isArray(serverPosts)) {
+        setPosts(serverPosts);
+      }
     } catch (err) {
       console.warn("API failed, falling back to static JSON files:", err);
       try {
         const [sRes, pRes] = await Promise.all([
-          fetch('/settings.json'),
-          fetch('/posts.json')
+          fetch('settings.json'),
+          fetch('posts.json')
         ]);
         
         if (sRes.ok) {
           const staticSettings = await sRes.json();
-          // Only use static if we don't already have local settings
           if (!localStorage.getItem('site_settings')) {
             setSettings(staticSettings);
           }
-        } else {
-          throw new Error('Static settings not found');
         }
-        if (pRes.ok) setPosts(await pRes.json());
+        if (pRes.ok) {
+          const staticPosts = await pRes.json();
+          setPosts(staticPosts);
+        }
       } catch (fallbackErr) {
         console.error("Static fallback failed:", fallbackErr);
-        if (!settings) {
+        if (!localSettings && !settings) {
           setError("데이터를 불러오는 데 실패했습니다. 네트워크 연결을 확인해 주세요.");
         }
       }
