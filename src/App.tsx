@@ -1253,14 +1253,16 @@ export default function App() {
 
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async () => {
-    // 1. Try LocalStorage first for instant user-specific persistence
-    const localSettings = localStorage.getItem('site_settings');
-    if (localSettings) {
-      try {
-        setSettings(JSON.parse(localSettings));
-      } catch (e) {
-        console.error("Error parsing local settings", e);
+  const fetchData = async (isInitial = false) => {
+    // 1. Try LocalStorage ONLY on initial load to prevent visual flicker before the server responds
+    if (isInitial) {
+      const localSettings = localStorage.getItem('site_settings');
+      if (localSettings) {
+        try {
+          setSettings(JSON.parse(localSettings));
+        } catch (e) {
+          console.error("Error parsing local settings", e);
+        }
       }
     }
 
@@ -1292,32 +1294,45 @@ export default function App() {
       // If API failed, fallback to static JSON files
       if (!sRes.ok || !pRes.ok) {
         console.log("API not available, using static fallbacks");
+        // Apply cache-busting to fetch the freshest files synced from GitHub
         const [staticSRes, staticPRes] = await Promise.all([
-          fetch('settings.json'),
-          fetch('posts.json')
+          fetch(`settings.json?t=${Date.now()}`).catch(() => ({ ok: false })),
+          fetch(`posts.json?t=${Date.now()}`).catch(() => ({ ok: false }))
         ]);
         
         if (staticSRes.ok) {
-          const staticSettings = await staticSRes.json();
-          if (!localStorage.getItem('site_settings')) {
-            setSettings(staticSettings);
-          }
+          const staticSettings = await (staticSRes as Response).json();
+          setSettings(staticSettings);
+          localStorage.setItem('site_settings', JSON.stringify(staticSettings));
         }
         if (staticPRes.ok) {
-          const staticPosts = await staticPRes.json();
+          const staticPosts = await (staticPRes as Response).json();
           setPosts(staticPosts);
         }
       }
     } catch (err) {
       console.error("Data fetch error:", err);
-      if (!localSettings && !settings) {
-        setError("데이터를 불러오는 데 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      // Final emergency fallback if network is completely down
+      if (!settings) {
+        const fallbackSettings = localStorage.getItem('site_settings');
+        if (fallbackSettings) {
+          setSettings(JSON.parse(fallbackSettings));
+        } else {
+          setError("데이터를 불러오는 데 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        }
       }
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(true); // Initial load with fast local cache placeholder
+
+    // Set up 15-second background polling so other clients/browsers automatically update
+    const interval = setInterval(() => {
+      fetchData(false);
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Dynamic Styling & SEO Persistence
@@ -1376,7 +1391,7 @@ export default function App() {
                 onClose={() => setIsAdminOpen(false)}
                 onLogout={() => setUser(null)}
                 onUpdateSettings={(s) => setSettings(s)}
-                onUpdatePosts={fetchData}
+                onUpdatePosts={() => fetchData(false)}
               />
             )}
           </>
