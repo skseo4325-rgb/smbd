@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Menu, X, ChevronRight, Settings, LogOut, Plus, Trash2, Edit2, 
   LayoutDashboard, FileText, Package, Image as ImageIcon, Globe,
-  Instagram, Facebook, Youtube, Phone, Mail, MapPin, Check
+  Instagram, Facebook, Youtube, Phone, Mail, MapPin, Check,
+  Play, Video
 } from 'lucide-react';
 import { SiteSettings, Post, User } from './types';
 
@@ -154,8 +155,16 @@ const Services = ({ settings }: { settings: SiteSettings }) => {
   );
 };
 
+const extractYoutubeId = (url: string = "") => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
+
 const Portfolio = ({ posts }: { posts: Post[] }) => {
   const portfolioItems = posts.filter(p => p.type === 'portfolio');
+  const [selectedItem, setSelectedItem] = useState<Post | null>(null);
   
   return (
     <section id="portfolio" className="py-24 bg-black">
@@ -167,23 +176,60 @@ const Portfolio = ({ posts }: { posts: Post[] }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {portfolioItems.length > 0 ? (
-            portfolioItems.map((item) => (
-              <div key={item.id} className="relative aspect-square overflow-hidden group rounded-lg bg-zinc-900">
-                <img 
-                  src={item.image_url} 
-                  alt={item.title} 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${item.id}/800/800`;
-                  }}
-                />
-                <div className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-6 text-center">
-                  <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                  <p className="text-sm line-clamp-3">{item.content}</p>
+            portfolioItems.map((item) => {
+              const youtubeId = extractYoutubeId(item.image_url) || extractYoutubeId(item.content);
+              const hasVideo = !!youtubeId;
+              const thumbnailSrc = youtubeId 
+                ? `https://img.youtube.com/vi/${youtubeId}/0.jpg` 
+                : item.image_url;
+
+              return (
+                <div 
+                  key={item.id} 
+                  onClick={() => setSelectedItem(item)}
+                  className="relative aspect-square overflow-hidden group rounded-lg bg-zinc-900 cursor-pointer border border-white/5"
+                >
+                  <img 
+                    src={thumbnailSrc} 
+                    alt={item.title} 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${item.id}/800/800`;
+                    }}
+                  />
+                  
+                  {/* YouTube Overlay indicator */}
+                  {hasVideo && (
+                    <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-md p-2 rounded-full border border-white/10 z-10 flex items-center justify-center text-red-500">
+                      <Youtube size={18} />
+                    </div>
+                  )}
+
+                  {/* Play icon inside card on hover */}
+                  {hasVideo && (
+                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center opacity-85 group-hover:opacity-100 group-hover:scale-110 transition-all z-10 pointer-events-none">
+                      <div className="w-16 h-16 bg-red-600/90 text-white rounded-full flex items-center justify-center shadow-lg group-hover:bg-red-600 transition-colors">
+                        <Play size={28} className="ml-1 fill-white" />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-6 text-center z-20">
+                    {hasVideo && (
+                      <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mb-4">
+                        <Play size={20} className="ml-0.5 text-white fill-white" />
+                      </div>
+                    )}
+                    <h3 className="text-xl font-bold mb-2">{item.title}</h3>
+                    <p className="text-sm line-clamp-3">{item.content.replace(/https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s]+/g, '').trim()}</p>
+                    <span className="text-xs text-white/60 mt-4 underline font-medium">
+                      {hasVideo ? '동영상 재생하기' : '자세히 보기'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="col-span-full py-20 text-center text-white/30 border border-dashed border-white/10 rounded-xl">
               등록된 포트폴리오가 없습니다. 관리자 페이지에서 추가해주세요.
@@ -191,6 +237,81 @@ const Portfolio = ({ posts }: { posts: Post[] }) => {
           )}
         </div>
       </div>
+
+      {/* Lightbox / Video Player Modal */}
+      <AnimatePresence>
+        {selectedItem && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-black/95 backdrop-blur-md"
+            onClick={() => setSelectedItem(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="relative w-full max-w-5xl bg-zinc-950 border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setSelectedItem(null)}
+                className="absolute top-4 right-4 z-[60] p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors border border-white/10"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="flex flex-col lg:flex-row min-h-[400px] lg:h-[550px]">
+                {/* Media Section */}
+                <div className="flex-1 bg-black flex items-center justify-center relative min-h-[250px] sm:min-h-[350px] lg:min-h-0">
+                  {(() => {
+                    const youtubeId = extractYoutubeId(selectedItem.image_url) || extractYoutubeId(selectedItem.content);
+                    if (youtubeId) {
+                      return (
+                        <iframe 
+                          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`}
+                          title={selectedItem.title}
+                          className="w-full h-full border-0 absolute inset-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        ></iframe>
+                      );
+                    } else {
+                      return (
+                        <img 
+                          src={selectedItem.image_url} 
+                          alt={selectedItem.title} 
+                          className="max-h-full max-w-full object-contain absolute p-4"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${selectedItem.id}/800/800`;
+                          }}
+                        />
+                      );
+                    }
+                  })()}
+                </div>
+
+                {/* Details Section */}
+                <div className="w-full lg:w-80 p-6 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-white/10 bg-zinc-950">
+                  <div className="overflow-y-auto max-h-[200px] lg:max-h-none mb-6">
+                    <span className="text-primary font-mono text-xs uppercase tracking-wider mb-2 block">Portfolio Project</span>
+                    <h3 className="text-2xl font-bold tracking-tight mb-4 text-white line-clamp-2">{selectedItem.title}</h3>
+                    <p className="text-white/70 text-sm leading-relaxed whitespace-pre-wrap">
+                      {selectedItem.content.replace(/https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s]+/g, '').trim()}
+                    </p>
+                  </div>
+                  <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs text-white/30 font-mono">
+                    <span>등록일</span>
+                    <span>{new Date(selectedItem.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 };
@@ -449,9 +570,70 @@ const AdminDashboard = ({
   const [activeTab, setActiveTab] = useState<'cms' | 'settings' | 'seo'>('cms');
   const [editingSettings, setEditingSettings] = useState(settings);
   const [newPost, setNewPost] = useState({ type: 'notice', title: '', content: '', image_url: '' });
+  const [mediaMode, setMediaMode] = useState<'image' | 'youtube'>('image');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isStaticMode, setIsStaticMode] = useState(false);
+  const [editingPostId, setEditingPostId] = useState<number | null>(null);
+  const [postToDelete, setPostToDelete] = useState<Post | null>(null);
+
+  const handleStartEdit = (post: Post) => {
+    setEditingPostId(post.id);
+    setNewPost({
+      type: post.type,
+      title: post.title,
+      content: post.content,
+      image_url: post.image_url || ''
+    });
+    setMediaMode(extractYoutubeId(post.image_url || '') ? 'youtube' : 'image');
+    const element = document.getElementById('cms-form-section');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPostId(null);
+    setNewPost({ type: 'notice', title: '', content: '', image_url: '' });
+    setMediaMode('image');
+  };
+
+  const handleEditPost = async () => {
+    if (editingPostId === null) return;
+    setIsSaving(true);
+    setSaveSuccess(false);
+    try {
+      const res = await fetch(`/api/posts/${editingPostId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPost)
+      });
+      if (res.ok) {
+        setNewPost({ type: 'notice', title: '', content: '', image_url: '' });
+        setMediaMode('image');
+        setEditingPostId(null);
+        onUpdatePosts();
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        if (isStaticMode) {
+          alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 저장이 불가능합니다.');
+        } else {
+          alert('게시글 수정 중 오류가 발생했습니다.');
+        }
+      }
+    } catch (error) {
+      if (isStaticMode) {
+        alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 저장이 불가능합니다.');
+      } else {
+        alert('게시글 수정 중 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   useEffect(() => {
     // Check if API is available
@@ -510,6 +692,7 @@ const AdminDashboard = ({
       });
       if (res.ok) {
         setNewPost({ type: 'notice', title: '', content: '', image_url: '' });
+        setMediaMode('image');
         onUpdatePosts();
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
@@ -532,9 +715,30 @@ const AdminDashboard = ({
   };
 
   const handleDeletePost = async (id: number) => {
-    if (confirm('정말 삭제하시겠습니까?')) {
-      await fetch(`/api/posts/${id}`, { method: 'DELETE' });
-      onUpdatePosts();
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        onUpdatePosts();
+        setPostToDelete(null);
+        if (editingPostId === id) {
+          handleCancelEdit();
+        }
+      } else {
+        if (isStaticMode) {
+          alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 삭제가 불가능합니다.');
+        } else {
+          alert('게시글 삭제 중 오류가 발생했습니다.');
+        }
+      }
+    } catch (e) {
+      if (isStaticMode) {
+        alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 삭제가 불가능합니다.');
+      } else {
+        alert('게시글 삭제 중 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -579,8 +783,11 @@ const AdminDashboard = ({
         <div className="max-w-5xl mx-auto">
           {activeTab === 'cms' && (
             <div className="space-y-12">
-              <section className="glass-panel p-8 rounded-2xl">
-                <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Plus size={20} /> 새 게시글 작성</h3>
+              <section id="cms-form-section" className="glass-panel p-8 rounded-2xl">
+                <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                  {editingPostId !== null ? <Edit2 size={20} /> : <Plus size={20} />}
+                  {editingPostId !== null ? '게시글 수정하기' : '새 게시글 작성'}
+                </h3>
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <select 
                     className="bg-zinc-900 border border-white/10 rounded-lg p-3"
@@ -596,29 +803,91 @@ const AdminDashboard = ({
                     value={newPost.title} onChange={(e) => setNewPost({...newPost, title: e.target.value})}
                   />
                 </div>
-                <input 
-                  type="text" placeholder="이미지 URL" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 mb-4"
-                  value={newPost.image_url} onChange={(e) => setNewPost({...newPost, image_url: e.target.value})}
-                />
+                <div className="mb-6 space-y-4">
+                  {/* Media Mode Selector */}
+                  <div className="flex gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setMediaMode('image')}
+                      className={`flex-1 py-2.5 px-4 rounded-lg border text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                        mediaMode === 'image'
+                          ? 'bg-blue-600/10 border-blue-500/40 text-blue-400'
+                          : 'bg-zinc-900 border-white/5 text-white/60 hover:bg-zinc-800'
+                      }`}
+                    >
+                      <ImageIcon size={16} /> 일반 이미지 등록
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMediaMode('youtube')}
+                      className={`flex-1 py-2.5 px-4 rounded-lg border text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                        mediaMode === 'youtube'
+                          ? 'bg-red-600/10 border-red-500/40 text-red-500'
+                          : 'bg-zinc-900 border-white/5 text-white/60 hover:bg-zinc-800'
+                      }`}
+                    >
+                      <Youtube size={16} /> 유튜브 동영상 링크
+                    </button>
+                  </div>
+
+                  {/* Conditional Input Field */}
+                  <div>
+                    {mediaMode === 'image' ? (
+                      <div>
+                        <input 
+                          type="text" 
+                          placeholder="이미지 URL (예: https://images.unsplash.com/...)" 
+                          className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
+                          value={newPost.image_url} 
+                          onChange={(e) => setNewPost({...newPost, image_url: e.target.value})}
+                        />
+                        <p className="text-xs text-white/40 mt-1.5 pl-1">소개 이미지의 웹 주소(URL)를 입력하세요.</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <input 
+                          type="text" 
+                          placeholder="유튜브 동영상 주소 (예: https://www.youtube.com/watch?v=...)" 
+                          className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 focus:border-red-500/50 outline-none"
+                          value={newPost.image_url} 
+                          onChange={(e) => setNewPost({...newPost, image_url: e.target.value})}
+                        />
+                        <div className="text-xs text-red-400 mt-2 flex items-start gap-1.5 bg-red-950/20 border border-red-900/40 p-2.5 rounded-lg leading-relaxed">
+                          <Video size={16} className="mt-0.5 shrink-0" />
+                          <span>유튜브 동영상 주소를 직접 입력하시면 해당 영상의 썸네일이 자동으로 설정되며, 포트폴리오 섹션에서 즉시 동영상 재생이 가능한 한글 지원 전용 플레이어가 활성화됩니다.</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <textarea 
                   placeholder="내용" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 mb-4" rows={4}
                   value={newPost.content} onChange={(e) => setNewPost({...newPost, content: e.target.value})}
                 ></textarea>
                 <div className="flex items-center gap-4">
                   <button 
-                    onClick={handleAddPost} 
+                    onClick={editingPostId !== null ? handleEditPost : handleAddPost} 
                     disabled={isSaving}
                     className={`bg-blue-600 px-8 py-3 rounded-lg font-bold transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
                   >
-                    {isSaving ? '등록 중...' : '등록하기'}
+                    {isSaving ? (editingPostId !== null ? '수정 중...' : '등록 중...') : (editingPostId !== null ? '수정 완료' : '등록하기')}
                   </button>
+                  {editingPostId !== null && (
+                    <button 
+                      onClick={handleCancelEdit}
+                      disabled={isSaving}
+                      className="bg-zinc-800 hover:bg-zinc-700 border border-white/10 px-6 py-3 rounded-lg font-bold transition-all text-white/80"
+                    >
+                      취소
+                    </button>
+                  )}
                   {saveSuccess && (
                     <motion.span 
                       initial={{ opacity: 0, x: -10 }} 
                       animate={{ opacity: 1, x: 0 }} 
                       className="text-emerald-500 font-bold flex items-center gap-2"
                     >
-                      <Check size={18} /> 등록 완료! (GitHub 동기화됨)
+                      <Check size={18} /> {editingPostId !== null ? '수정 완료!' : '등록 완료!'} (GitHub 동기화됨)
                     </motion.span>
                   )}
                 </div>
@@ -627,30 +896,58 @@ const AdminDashboard = ({
               <section>
                 <h3 className="text-xl font-bold mb-6">게시글 목록</h3>
                 <div className="space-y-4">
-                  {posts.map(post => (
-                    <div key={post.id} className="glass-panel p-4 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded bg-zinc-800 overflow-hidden border border-white/10">
-                          {post.image_url && (
-                            <img 
-                              src={post.image_url} 
-                              className="w-full h-full object-cover" 
-                              referrerPolicy="no-referrer" 
-                              onError={(e) => (e.target as HTMLImageElement).src = 'https://placehold.co/100x100/111/fff?text=Error'}
-                            />
-                          )}
+                  {posts.map(post => {
+                    const postYoutubeId = extractYoutubeId(post.image_url) || extractYoutubeId(post.content);
+                    const thumbnail = postYoutubeId 
+                      ? `https://img.youtube.com/vi/${postYoutubeId}/default.jpg` 
+                      : post.image_url;
+
+                    return (
+                      <div key={post.id} className={`glass-panel p-4 rounded-xl flex items-center justify-between border transition-all ${editingPostId === post.id ? 'border-blue-500/40 bg-blue-950/10' : 'border-white/15'}`}>
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded bg-zinc-800 overflow-hidden border border-white/10 relative flex items-center justify-center">
+                            {thumbnail ? (
+                              <>
+                                <img 
+                                  src={thumbnail} 
+                                  className="w-full h-full object-cover" 
+                                  referrerPolicy="no-referrer" 
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://placehold.co/100x100/111/fff?text=No+Image';
+                                  }}
+                                />
+                                {postYoutubeId && (
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-red-500">
+                                    <Play size={14} className="fill-red-500 text-red-500" />
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="text-[10px] text-white/30">No Img</div>
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-blue-500">{post.type}</span>
+                            <h4 className="font-bold">{post.title}</h4>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-blue-500">{post.type}</span>
-                          <h4 className="font-bold">{post.title}</h4>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleStartEdit(post)} 
+                            className={`p-2 rounded-lg transition-colors ${editingPostId === post.id ? 'bg-blue-600 text-white' : 'hover:bg-white/10 text-white/75 hover:text-white'}`}
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button 
+                            onClick={() => setPostToDelete(post)} 
+                            className="p-2 hover:bg-red-950/40 rounded-lg text-red-500 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button className="p-2 hover:bg-white/10 rounded-lg"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDeletePost(post.id)} className="p-2 hover:bg-white/10 rounded-lg text-red-500"><Trash2 size={16} /></button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             </div>
@@ -838,6 +1135,11 @@ const AdminDashboard = ({
                 >
                   {isSaving ? '저장 중...' : '설정 저장'}
                 </button>
+                {(window.location.hostname.includes('github.io') || window.location.hostname.includes('smbending.co.kr')) && (
+                  <span className="text-xs text-amber-500 bg-amber-500/10 px-3 py-1 rounded-full">
+                    * 깃허브 페이지에서는 실시간 저장이 제한됩니다. 로컬에서 수정 후 푸시해 주세요.
+                  </span>
+                )}
                 {saveSuccess && (
                   <motion.span 
                     initial={{ opacity: 0, x: -10 }} 
@@ -876,6 +1178,11 @@ const AdminDashboard = ({
                 >
                   {isSaving ? '저장 중...' : 'SEO 설정 저장'}
                 </button>
+                {(window.location.hostname.includes('github.io') || window.location.hostname.includes('smbending.co.kr')) && (
+                  <span className="text-xs text-amber-500 bg-amber-500/10 px-3 py-1 rounded-full">
+                    * 깃허브 페이지에서는 실시간 저장이 제한됩니다.
+                  </span>
+                )}
                 {saveSuccess && (
                   <motion.span 
                     initial={{ opacity: 0, x: -10 }} 
@@ -890,6 +1197,48 @@ const AdminDashboard = ({
           )}
         </div>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {postToDelete && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setPostToDelete(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              className="w-full max-w-md bg-zinc-950 border border-white/10 rounded-2xl p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h4 className="text-lg font-bold text-white mb-2">게시글 삭제</h4>
+              <p className="text-sm text-white/70 mb-6 leading-relaxed">
+                정말로 <span className="text-white font-bold">"{postToDelete.title}"</span> 게시글을 삭제하시겠습니까? 이 작업은 복구할 수 없습니다.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button 
+                  onClick={() => setPostToDelete(null)}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-sm font-semibold transition-colors border border-white/5"
+                >
+                  취소
+                </button>
+                <button 
+                  onClick={() => handleDeletePost(postToDelete.id)}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5"
+                >
+                  {isSaving ? '삭제 중...' : '삭제하기'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -916,48 +1265,53 @@ export default function App() {
     }
 
     try {
+      // Try API first (for local dev or Node.js hosts)
       const [sRes, pRes] = await Promise.all([
-        fetch('api/settings'),
-        fetch('api/posts')
+        fetch('api/settings').catch(() => ({ ok: false })),
+        fetch('api/posts').catch(() => ({ ok: false }))
       ]);
       
-      if (!sRes.ok || !pRes.ok) {
-        throw new Error('API request failed');
-      }
+      let serverSettings = null;
+      let serverPosts = null;
 
-      const serverSettings = await sRes.json();
-      if (serverSettings && typeof serverSettings === 'object') {
-        setSettings(serverSettings);
-        localStorage.setItem('site_settings', JSON.stringify(serverSettings));
+      if (sRes.ok) {
+        serverSettings = await (sRes as Response).json();
+        if (serverSettings && typeof serverSettings === 'object') {
+          setSettings(serverSettings);
+          localStorage.setItem('site_settings', JSON.stringify(serverSettings));
+        }
       }
       
-      const serverPosts = await pRes.json();
-      if (Array.isArray(serverPosts)) {
-        setPosts(serverPosts);
+      if (pRes.ok) {
+        serverPosts = await (pRes as Response).json();
+        if (Array.isArray(serverPosts)) {
+          setPosts(serverPosts);
+        }
       }
-    } catch (err) {
-      console.warn("API failed, falling back to static JSON files:", err);
-      try {
-        const [sRes, pRes] = await Promise.all([
+
+      // If API failed, fallback to static JSON files
+      if (!sRes.ok || !pRes.ok) {
+        console.log("API not available, using static fallbacks");
+        const [staticSRes, staticPRes] = await Promise.all([
           fetch('settings.json'),
           fetch('posts.json')
         ]);
         
-        if (sRes.ok) {
-          const staticSettings = await sRes.json();
+        if (staticSRes.ok) {
+          const staticSettings = await staticSRes.json();
           if (!localStorage.getItem('site_settings')) {
             setSettings(staticSettings);
           }
         }
-        if (pRes.ok) {
-          const staticPosts = await pRes.json();
+        if (staticPRes.ok) {
+          const staticPosts = await staticPRes.json();
           setPosts(staticPosts);
         }
-      } catch (fallbackErr) {
-        console.error("Static fallback failed:", fallbackErr);
-        if (!localSettings && !settings) {
-          setError("데이터를 불러오는 데 실패했습니다. 네트워크 연결을 확인해 주세요.");
-        }
+      }
+    } catch (err) {
+      console.error("Data fetch error:", err);
+      if (!localSettings && !settings) {
+        setError("데이터를 불러오는 데 실패했습니다. 잠시 후 다시 시도해 주세요.");
       }
     }
   };

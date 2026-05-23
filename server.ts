@@ -172,8 +172,8 @@ async function startServer() {
 
   app.put("/api/posts/:id", (req, res) => {
     const { id } = req.params;
-    const { title, content, image_url } = req.body;
-    db.prepare("UPDATE posts SET title = ?, content = ?, image_url = ? WHERE id = ?").run(title, content, image_url, id);
+    const { type, title, content, image_url } = req.body;
+    db.prepare("UPDATE posts SET type = ?, title = ?, content = ?, image_url = ? WHERE id = ?").run(type, title, content, image_url, id);
     syncToJson(); // Sync to JSON for GitHub
     res.json({ success: true });
   });
