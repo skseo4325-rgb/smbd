@@ -8,24 +8,72 @@ import {
 } from 'lucide-react';
 import { SiteSettings, Post, User } from './types';
 
+// --- Helpers ---
+
+// Helper to convert indirect image hosting URLs (like postimg.cc or imgur.com) to direct image URLs
+const getDirectImageUrl = (url: string = ""): string => {
+  if (!url) return "";
+  
+  const cleanUrl = url.trim();
+
+  // postimg.cc direct link converter
+  // e.g., https://postimg.cc/23s300dq -> https://i.postimg.cc/23s300dq/image.png
+  const postimgMatch = cleanUrl.match(/https?:\/\/(?:www\.)?postimg\.cc\/([a-zA-Z0-9]+)/);
+  if (postimgMatch && postimgMatch[1]) {
+    return `https://i.postimg.cc/${postimgMatch[1]}/image.png`;
+  }
+
+  // postimages.org direct link converter
+  const postimagesMatch = cleanUrl.match(/https?:\/\/(?:www\.)?postimages\.org\/([a-zA-Z0-9]+)/);
+  if (postimagesMatch && postimagesMatch[1]) {
+    return `https://i.postimg.cc/${postimagesMatch[1]}/image.png`;
+  }
+
+  // imgur.com direct link converter
+  const imgurMatch = cleanUrl.match(/https?:\/\/(?:www\.)?imgur\.com\/([a-zA-Z0-9]+)(?!\/)/);
+  if (imgurMatch && imgurMatch[1] && !cleanUrl.includes("i.imgur.com") && !cleanUrl.includes("/a/")) {
+    return `https://i.imgur.com/${imgurMatch[1]}.png`;
+  }
+
+  return cleanUrl;
+};
+
 // --- Components ---
 
 const Navbar = ({ settings, onAdminClick }: { settings: SiteSettings, onAdminClick: () => void }) => {
   const [isOpen, setIsOpen] = useState(false);
   
+  const finalLogoUrl = getDirectImageUrl(settings.logo_url);
+  
   return (
     <nav className="fixed top-0 left-0 w-full z-50 glass-panel">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        <div className="text-2xl font-bold tracking-tighter flex items-center gap-2">
-          {settings.logo_url ? (
-            <img src={settings.logo_url} alt={settings.site_name} className="h-10 object-contain" referrerPolicy="no-referrer" />
+      <div className="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
+        <div className="flex items-center">
+          {finalLogoUrl ? (
+            <img 
+              src={finalLogoUrl} 
+              alt="" 
+              className="h-12 md:h-14 lg:h-16 w-auto object-contain block py-1" 
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                // If the user's custom logo fails to load, hide or fallback to a standard icon
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
           ) : (
-            <>
-              <div className="w-8 h-8 bg-primary rounded-sm rotate-45 flex items-center justify-center">
-                <span className="text-white font-black -rotate-45">S</span>
+            // Elegant modern default bending machine / industrial vector logo
+            <div className="flex items-center gap-2.5 text-primary py-1">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <svg className="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 12H2" />
+                  <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+                </svg>
               </div>
-              {settings.site_name}
-            </>
+              <div className="flex flex-col">
+                <span className="text-white text-sm font-black tracking-[0.25em] leading-none uppercase font-sans">S M</span>
+                <span className="text-[9px] text-white/40 tracking-[0.2em] font-medium uppercase font-mono mt-0.5">Bending</span>
+              </div>
+            </div>
           )}
         </div>
         
@@ -1017,7 +1065,7 @@ const AdminDashboard = ({
                       <div className="relative z-10 w-full flex items-center justify-center">
                         {editingSettings.logo_url ? (
                           <img 
-                            src={editingSettings.logo_url} 
+                            src={getDirectImageUrl(editingSettings.logo_url)} 
                             className="max-h-20 max-w-full object-contain" 
                             referrerPolicy="no-referrer"
                             onError={(e) => {
