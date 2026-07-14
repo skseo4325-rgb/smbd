@@ -573,7 +573,13 @@ const AdminDashboard = ({
   const [mediaMode, setMediaMode] = useState<'image' | 'youtube'>('image');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [isStaticMode, setIsStaticMode] = useState(false);
+  const [isStaticMode, setIsStaticMode] = useState(() => {
+    return (
+      window.location.hostname.includes('netlify.app') || 
+      window.location.hostname.includes('github.io') ||
+      (window.location.hostname !== 'localhost' && !window.location.hostname.includes('run.app'))
+    );
+  });
   const [editingPostId, setEditingPostId] = useState<number | null>(null);
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
 
@@ -636,8 +642,17 @@ const AdminDashboard = ({
   };
 
   useEffect(() => {
-    // Check if API is available
-    fetch('/api/settings').catch(() => setIsStaticMode(true));
+    // Check if API is available and is a real JSON API (to prevent treating Netlify SPA fallback HTML as success)
+    fetch('/api/settings')
+      .then(res => {
+        const contentType = res.headers.get('content-type');
+        if (!res.ok || !contentType || !contentType.includes('application/json')) {
+          setIsStaticMode(true);
+        } else {
+          setIsStaticMode(false);
+        }
+      })
+      .catch(() => setIsStaticMode(true));
   }, []);
 
   const handleSaveSettings = async () => {
@@ -956,56 +971,100 @@ const AdminDashboard = ({
           {activeTab === 'settings' && (
             <div className="glass-panel p-8 rounded-2xl space-y-8">
               <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Settings size={20} /> 사이트 전반 설정</h3>
-              
-              <div className="grid grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <label className="text-xs font-bold text-white/40 uppercase">사이트 이름</label>
-                  <input 
-                    type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
-                    value={editingSettings.site_name} onChange={(e) => setEditingSettings({...editingSettings, site_name: e.target.value})}
-                  />
+
+              {isStaticMode && (
+                <div className="bg-amber-950/20 border border-amber-500/30 text-amber-300 p-5 rounded-2xl text-sm leading-relaxed space-y-2">
+                  <p className="font-bold flex items-center gap-2 text-base">⚠️ 넷리파이(Netlify) 정적 사이트 작동 안내</p>
+                  <p>현재 넷리파이 정적 모드입니다. 이곳에서 변경사항을 입력하고 <strong>[설정 저장]</strong>을 누르면 <strong>현재 브라우저에 즉시 임시 반영되어 미리보기</strong>할 수 있습니다.</p>
+                  <p>하지만 <strong>모든 접속자에게 이 변경사항을 반영</strong>하려면, AI Studio 빌더 화면에서 설정을 수정하여 깃허브(GitHub)에 푸시해야 합니다. 푸시가 완료되면 넷리파이가 변경된 파일을 감지하여 사이트를 자동으로 빌드하고 배포합니다.</p>
                 </div>
-                <div className="space-y-4">
-                  <label className="text-xs font-bold text-white/40 uppercase">로고 URL</label>
-                  <div className="flex gap-4 items-center">
-                    <div className="w-12 h-12 rounded bg-white/5 flex items-center justify-center overflow-hidden border border-white/10">
-                      <img 
-                        src={editingSettings.logo_url} 
-                        className="max-w-full max-h-full object-contain" 
-                        referrerPolicy="no-referrer"
-                        onError={(e) => (e.target as HTMLImageElement).src = 'https://placehold.co/100x100/111/fff?text=Logo'}
-                      />
-                    </div>
+              )}
+              
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <label className="text-xs font-bold text-white/40 uppercase block">사이트 이름</label>
                     <input 
-                      type="text" className="flex-1 bg-zinc-900 border border-white/10 rounded-lg p-3"
-                      value={editingSettings.logo_url} onChange={(e) => setEditingSettings({...editingSettings, logo_url: e.target.value})}
-                      placeholder="이미지 URL을 입력하세요"
+                      type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
+                      value={editingSettings.site_name} onChange={(e) => setEditingSettings({...editingSettings, site_name: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    <label className="text-xs font-bold text-white/40 uppercase block">회사 전화번호</label>
+                    <input 
+                      type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
+                      value={editingSettings.company_phone} onChange={(e) => setEditingSettings({...editingSettings, company_phone: e.target.value})}
                     />
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-3 gap-8">
-                <div className="space-y-4">
-                  <label className="text-xs font-bold text-white/40 uppercase">회사 전화번호</label>
-                  <input 
-                    type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
-                    value={editingSettings.company_phone} onChange={(e) => setEditingSettings({...editingSettings, company_phone: e.target.value})}
-                  />
+                {/* Big Prominent Logo Section */}
+                <div className="border border-white/10 bg-white/5 rounded-2xl p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="font-bold text-base text-white">사이트 로고 설정</h4>
+                      <p className="text-xs text-white/40 mt-1">사이트 상단 메뉴 네비게이션 및 사이트 전반에 표시되는 브랜드 로고입니다.</p>
+                    </div>
+                    <span className="text-[10px] w-fit bg-blue-500/10 text-blue-400 font-mono font-bold uppercase tracking-wider px-2 py-1 rounded border border-blue-500/20">Recommended: PNG / SVG</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center pt-2">
+                    {/* Large Logo Preview Area */}
+                    <div className="lg:col-span-1 border border-white/10 rounded-xl bg-zinc-950 p-6 flex flex-col items-center justify-center min-h-[140px] relative overflow-hidden group">
+                      {/* Grid background for PNG transparent preview */}
+                      <div className="absolute inset-0 opacity-10 pointer-events-none bg-[linear-gradient(45deg,#ccc_25%,transparent_25%),linear-gradient(-45deg,#ccc_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#ccc_75%),linear-gradient(-45deg,transparent_75%,#ccc_75%)] bg-[size:10px_10px] bg-[position:0_0,0_5px,5px_-5px,-5px_0px]"></div>
+                      
+                      <div className="relative z-10 w-full flex items-center justify-center">
+                        {editingSettings.logo_url ? (
+                          <img 
+                            src={editingSettings.logo_url} 
+                            className="max-h-20 max-w-full object-contain" 
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://placehold.co/300x100/111/fff?text=Logo+Error';
+                            }}
+                          />
+                        ) : (
+                          <div className="text-center text-white/30 space-y-1.5">
+                            <span className="text-sm font-semibold block">기본 텍스트 로고 (S)</span>
+                            <span className="text-[10px] block leading-relaxed">로고 이미지 주소가 없는 경우<br/>기본 텍스트형 로고가 자동 출력됩니다.</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Input Area */}
+                    <div className="lg:col-span-2 space-y-3">
+                      <label className="text-xs font-bold text-white/60 uppercase tracking-wider block">로고 이미지 URL 주소</label>
+                      <input 
+                        type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50"
+                        value={editingSettings.logo_url || ''} 
+                        onChange={(e) => setEditingSettings({...editingSettings, logo_url: e.target.value})}
+                        placeholder="로고 이미지의 웹 주소(URL)를 입력해 주세요 (예: https://.../logo.png)"
+                      />
+                      <p className="text-xs text-white/40 leading-relaxed">
+                        * 이미지 URL을 입력하는 즉시 왼쪽 박스에 선명하고 크게 실시간 미리보기가 표시됩니다.<br/>
+                        * 배경이 투명한 가로형 디자인 로고를 넣으시면 전체 홈페이지 레이아웃에 가장 깔끔하게 녹아듭니다.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-4">
-                  <label className="text-xs font-bold text-white/40 uppercase">회사 이메일</label>
-                  <input 
-                    type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
-                    value={editingSettings.company_email} onChange={(e) => setEditingSettings({...editingSettings, company_email: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-4">
-                  <label className="text-xs font-bold text-white/40 uppercase">회사 주소</label>
-                  <input 
-                    type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
-                    value={editingSettings.company_address} onChange={(e) => setEditingSettings({...editingSettings, company_address: e.target.value})}
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2">
+                  <div className="space-y-4">
+                    <label className="text-xs font-bold text-white/40 uppercase block">회사 이메일</label>
+                    <input 
+                      type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
+                      value={editingSettings.company_email} onChange={(e) => setEditingSettings({...editingSettings, company_email: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    <label className="text-xs font-bold text-white/40 uppercase block">회사 주소</label>
+                    <input 
+                      type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
+                      value={editingSettings.company_address} onChange={(e) => setEditingSettings({...editingSettings, company_address: e.target.value})}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1267,46 +1326,69 @@ export default function App() {
     }
 
     try {
-      // Try API first (for local dev or Node.js hosts)
-      const [sRes, pRes] = await Promise.all([
-        fetch('api/settings').catch(() => ({ ok: false })),
-        fetch('api/posts').catch(() => ({ ok: false }))
-      ]);
-      
+      // Check if we are running in a static environment to skip API calls entirely
+      const isStaticEnv = 
+        window.location.hostname.includes('netlify.app') || 
+        window.location.hostname.includes('github.io') ||
+        (window.location.hostname !== 'localhost' && !window.location.hostname.includes('run.app'));
+
+      let sOk = false;
+      let pOk = false;
       let serverSettings = null;
       let serverPosts = null;
 
-      if (sRes.ok) {
-        serverSettings = await (sRes as Response).json();
-        if (serverSettings && typeof serverSettings === 'object') {
-          setSettings(serverSettings);
-          localStorage.setItem('site_settings', JSON.stringify(serverSettings));
-        }
-      }
-      
-      if (pRes.ok) {
-        serverPosts = await (pRes as Response).json();
-        if (Array.isArray(serverPosts)) {
-          setPosts(serverPosts);
+      if (!isStaticEnv) {
+        try {
+          const [sRes, pRes] = await Promise.all([
+            fetch('/api/settings').catch(() => null),
+            fetch('/api/posts').catch(() => null)
+          ]);
+
+          if (sRes && sRes.ok) {
+            const sType = sRes.headers.get('content-type');
+            if (sType && sType.includes('application/json')) {
+              serverSettings = await sRes.json();
+              sOk = true;
+            }
+          }
+
+          if (pRes && pRes.ok) {
+            const pType = pRes.headers.get('content-type');
+            if (pType && pType.includes('application/json')) {
+              serverPosts = await pRes.json();
+              pOk = true;
+            }
+          }
+        } catch (apiErr) {
+          console.log("API server fetch failed, using static fallbacks", apiErr);
         }
       }
 
-      // If API failed, fallback to static JSON files
-      if (!sRes.ok || !pRes.ok) {
-        console.log("API not available, using static fallbacks");
+      if (sOk && serverSettings) {
+        setSettings(serverSettings);
+        localStorage.setItem('site_settings', JSON.stringify(serverSettings));
+      }
+
+      if (pOk && serverPosts) {
+        setPosts(serverPosts);
+      }
+
+      // If API failed, wasn't JSON, or we are in a static environment, fallback to static JSON files
+      if (!sOk || !pOk) {
+        console.log("Using static JSON fallbacks");
         // Apply cache-busting to fetch the freshest files synced from GitHub
         const [staticSRes, staticPRes] = await Promise.all([
-          fetch(`settings.json?t=${Date.now()}`).catch(() => ({ ok: false })),
-          fetch(`posts.json?t=${Date.now()}`).catch(() => ({ ok: false }))
+          fetch(`/settings.json?t=${Date.now()}`).catch(() => null),
+          fetch(`/posts.json?t=${Date.now()}`).catch(() => null)
         ]);
         
-        if (staticSRes.ok) {
-          const staticSettings = await (staticSRes as Response).json();
+        if (staticSRes && staticSRes.ok) {
+          const staticSettings = await staticSRes.json();
           setSettings(staticSettings);
           localStorage.setItem('site_settings', JSON.stringify(staticSettings));
         }
-        if (staticPRes.ok) {
-          const staticPosts = await (staticPRes as Response).json();
+        if (staticPRes && staticPRes.ok) {
+          const staticPosts = await staticPRes.json();
           setPosts(staticPosts);
         }
       }
@@ -1327,12 +1409,19 @@ export default function App() {
   useEffect(() => {
     fetchData(true); // Initial load with fast local cache placeholder
 
-    // Set up 15-second background polling so other clients/browsers automatically update
-    const interval = setInterval(() => {
-      fetchData(false);
-    }, 15000);
+    const isStaticEnv = 
+      window.location.hostname.includes('netlify.app') || 
+      window.location.hostname.includes('github.io') ||
+      (window.location.hostname !== 'localhost' && !window.location.hostname.includes('run.app'));
 
-    return () => clearInterval(interval);
+    // Set up 15-second background polling ONLY if we have a live dynamic database backend
+    if (!isStaticEnv) {
+      const interval = setInterval(() => {
+        fetchData(false);
+      }, 15000);
+
+      return () => clearInterval(interval);
+    }
   }, []);
 
   // Dynamic Styling & SEO Persistence
