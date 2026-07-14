@@ -46,9 +46,9 @@ const Navbar = ({ settings, onAdminClick }: { settings: SiteSettings, onAdminCli
   const finalLogoUrl = getDirectImageUrl(settings.logo_url);
   
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 glass-panel">
+    <nav className="fixed top-0 left-0 w-full z-50 bg-white shadow-md border-b border-zinc-200 text-zinc-800">
       <div className="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
-        <div className="flex items-center">
+        <a href="#home" className="flex items-center cursor-pointer hover:opacity-90 transition-opacity">
           {finalLogoUrl ? (
             <img 
               src={finalLogoUrl} 
@@ -70,24 +70,24 @@ const Navbar = ({ settings, onAdminClick }: { settings: SiteSettings, onAdminCli
                 </svg>
               </div>
               <div className="flex flex-col">
-                <span className="text-white text-sm font-black tracking-[0.25em] leading-none uppercase font-sans">S M</span>
-                <span className="text-[9px] text-white/40 tracking-[0.2em] font-medium uppercase font-mono mt-0.5">Bending</span>
+                <span className="text-zinc-900 text-sm font-black tracking-[0.25em] leading-none uppercase font-sans">S M</span>
+                <span className="text-[9px] text-zinc-500 tracking-[0.2em] font-medium uppercase font-mono mt-0.5">Bending</span>
               </div>
             </div>
           )}
-        </div>
+        </a>
         
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium uppercase tracking-widest">
+        <div className="hidden md:flex items-center gap-8 text-sm font-bold uppercase tracking-widest text-zinc-700">
           <a href="#home" className="hover:text-primary transition-colors">홈</a>
           <a href="#services" className="hover:text-primary transition-colors">서비스</a>
           <a href="#portfolio" className="hover:text-primary transition-colors">포트폴리오</a>
           <a href="#contact" className="hover:text-primary transition-colors">문의하기</a>
-          <button onClick={onAdminClick} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+          <button onClick={onAdminClick} className="p-2 hover:bg-zinc-100 rounded-full text-zinc-600 hover:text-zinc-900 transition-colors">
             <Settings size={18} />
           </button>
         </div>
 
-        <button className="md:hidden" onClick={() => setIsOpen(!isOpen)}>
+        <button className="md:hidden text-zinc-700 hover:text-zinc-900 transition-colors" onClick={() => setIsOpen(!isOpen)}>
           {isOpen ? <X /> : <Menu />}
         </button>
       </div>
@@ -98,13 +98,13 @@ const Navbar = ({ settings, onAdminClick }: { settings: SiteSettings, onAdminCli
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="md:hidden glass-panel absolute top-full left-0 w-full p-6 flex flex-col gap-4"
+            className="md:hidden absolute top-full left-0 w-full p-6 flex flex-col gap-4 bg-white border-b border-zinc-200 text-zinc-800 shadow-lg"
           >
-            <a href="#home" onClick={() => setIsOpen(false)}>홈</a>
-            <a href="#services" onClick={() => setIsOpen(false)}>서비스</a>
-            <a href="#portfolio" onClick={() => setIsOpen(false)}>포트폴리오</a>
-            <a href="#contact" onClick={() => setIsOpen(false)}>문의하기</a>
-            <button onClick={() => { onAdminClick(); setIsOpen(false); }} className="flex items-center gap-2">
+            <a href="#home" className="hover:text-primary font-medium" onClick={() => setIsOpen(false)}>홈</a>
+            <a href="#services" className="hover:text-primary font-medium" onClick={() => setIsOpen(false)}>서비스</a>
+            <a href="#portfolio" className="hover:text-primary font-medium" onClick={() => setIsOpen(false)}>포트폴리오</a>
+            <a href="#contact" className="hover:text-primary font-medium" onClick={() => setIsOpen(false)}>문의하기</a>
+            <button onClick={() => { onAdminClick(); setIsOpen(false); }} className="flex items-center gap-2 hover:text-primary font-medium mt-2 pt-2 border-t border-zinc-100 text-zinc-600">
               <Settings size={18} /> 관리자
             </button>
           </motion.div>
