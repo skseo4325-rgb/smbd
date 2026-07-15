@@ -65,51 +65,50 @@ export async function saveFirebaseSettings(settings: any): Promise<boolean> {
 export async function getFirebasePosts(): Promise<any[]> {
   try {
     const postsColRef = collection(db, POSTS_COLLECTION);
-    const q = query(postsColRef, orderBy("created_at", "desc"));
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await getDocs(postsColRef);
     const posts: any[] = [];
     querySnapshot.forEach((doc) => {
       posts.push({ id: doc.id, ...doc.data() });
     });
+    
+    // Sort client-side to prevent Firestore query failures due to index/ordering issues
+    posts.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA; // Descending order
+    });
+    
     return posts;
   } catch (error) {
     console.error("Error getting posts from Firebase:", error);
-    return [];
+    throw error; // Propagate error so that the fallback logic can be triggered properly
   }
 }
 
 // Helper to add a post to Firestore
-export async function addFirebasePost(post: { type: string; title: string; content: string; image_url: string; created_at: string }): Promise<string | null> {
-  try {
-    const postsColRef = collection(db, POSTS_COLLECTION);
+export async function addFirebasePost(
+  post: { type: string; title: string; content: string; image_url: string; created_at: string },
+  customId?: string
+): Promise<string> {
+  const postsColRef = collection(db, POSTS_COLLECTION);
+  if (customId) {
+    const postDocRef = doc(db, POSTS_COLLECTION, customId);
+    await setDoc(postDocRef, post);
+    return customId;
+  } else {
     const docRef = await addDoc(postsColRef, post);
     return docRef.id;
-  } catch (error) {
-    console.error("Error adding post to Firebase:", error);
-    return null;
   }
 }
 
 // Helper to update a post in Firestore
-export async function updateFirebasePost(id: string, post: { type: string; title: string; content: string; image_url: string }): Promise<boolean> {
-  try {
-    const postDocRef = doc(db, POSTS_COLLECTION, id);
-    await updateDoc(postDocRef, { ...post });
-    return true;
-  } catch (error) {
-    console.error("Error updating post in Firebase:", error);
-    return false;
-  }
+export async function updateFirebasePost(id: string, post: { type: string; title: string; content: string; image_url: string }): Promise<void> {
+  const postDocRef = doc(db, POSTS_COLLECTION, id);
+  await updateDoc(postDocRef, { ...post });
 }
 
 // Helper to delete a post from Firestore
-export async function deleteFirebasePost(id: string): Promise<boolean> {
-  try {
-    const postDocRef = doc(db, POSTS_COLLECTION, id);
-    await deleteDoc(postDocRef);
-    return true;
-  } catch (error) {
-    console.error("Error deleting post from Firebase:", error);
-    return false;
-  }
+export async function deleteFirebasePost(id: string): Promise<void> {
+  const postDocRef = doc(db, POSTS_COLLECTION, id);
+  await deleteDoc(postDocRef);
 }

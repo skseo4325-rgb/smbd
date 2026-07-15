@@ -4,7 +4,7 @@ import {
   Menu, X, ChevronRight, Settings, LogOut, Plus, Trash2, Edit2, 
   LayoutDashboard, FileText, Package, Image as ImageIcon, Globe,
   Instagram, Facebook, Youtube, Phone, Mail, MapPin, Check,
-  Play, Video
+  Play, Video, Upload
 } from 'lucide-react';
 import { SiteSettings, Post, User } from './types';
 import { 
@@ -608,6 +608,51 @@ const AdminLogin = ({ onLogin }: { onLogin: (user: User) => void }) => {
   );
 };
 
+// Helper to resize and compress image file to Base64
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Compress to JPEG with 0.75 quality for an optimal size/quality ratio
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
+          resolve(compressedBase64);
+        } else {
+          resolve(event.target?.result as string);
+        }
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
 const AdminDashboard = ({ 
   settings, 
   posts, 
@@ -632,6 +677,50 @@ const AdminDashboard = ({
   const [isStaticMode] = useState(false); // Firebase enables dynamic features in all environments, including Netlify
   const [editingPostId, setEditingPostId] = useState<string | number | null>(null);
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsSaving(true);
+    try {
+      const base64Img = await compressImage(file);
+      setNewPost((prev) => ({ ...prev, image_url: base64Img }));
+    } catch (err) {
+      console.error(err);
+      alert("이미지 처리 중 오류가 발생했습니다.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setIsSaving(true);
+      try {
+        const base64Img = await compressImage(file);
+        setNewPost((prev) => ({ ...prev, image_url: base64Img }));
+      } catch (err) {
+        console.error(err);
+        alert("이미지 처리 중 오류가 발생했습니다.");
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
 
   const handleStartEdit = (post: Post) => {
     setEditingPostId(post.id);
@@ -666,6 +755,8 @@ const AdminDashboard = ({
         await updateFirebasePost(String(editingPostId), newPost);
       } catch (fbErr) {
         console.error("Firebase edit post failed:", fbErr);
+        alert("파이어베이스 수정 중 오류가 발생했습니다: " + (fbErr as Error).message);
+        throw fbErr;
       }
 
       // 2. Also try local API
@@ -686,7 +777,7 @@ const AdminDashboard = ({
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
-      alert('게시글 수정 중 오류가 발생했습니다.');
+      // Error is already alerted inside inner try/catch for detailed info, otherwise show generic alert
     } finally {
       setIsSaving(false);
     }
@@ -876,15 +967,67 @@ const AdminDashboard = ({
                   {/* Conditional Input Field */}
                   <div>
                     {mediaMode === 'image' ? (
-                      <div>
-                        <input 
-                          type="text" 
-                          placeholder="이미지 URL (예: https://images.unsplash.com/...)" 
-                          className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
-                          value={newPost.image_url} 
-                          onChange={(e) => setNewPost({...newPost, image_url: e.target.value})}
-                        />
-                        <p className="text-xs text-white/40 mt-1.5 pl-1">소개 이미지의 웹 주소(URL)를 입력하세요.</p>
+                      <div className="space-y-4">
+                        {/* Drag and Drop File Upload Area */}
+                        <div 
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onDrop={handleDrop}
+                          className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${
+                            isDragging 
+                              ? 'border-blue-500 bg-blue-500/10' 
+                              : 'border-white/10 bg-zinc-900/50 hover:bg-zinc-900 hover:border-white/20'
+                          }`}
+                        >
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            id="file-upload" 
+                            className="hidden" 
+                            onChange={handleFileChange} 
+                          />
+                          <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-2">
+                            <Upload className="text-white/40" size={32} />
+                            <span className="text-sm font-semibold text-white/80">이미지 파일을 드래그하거나 클릭하여 업로드</span>
+                            <span className="text-xs text-white/40">지원 형식: JPG, PNG, WEBP (최대 5MB)</span>
+                          </label>
+                        </div>
+
+                        {/* Image Preview if image_url exists */}
+                        {newPost.image_url && (
+                          <div className="flex items-center gap-4">
+                            <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-white/10 group">
+                              <img 
+                                src={newPost.image_url} 
+                                alt="Preview" 
+                                className="w-full h-full object-cover"
+                                referrerPolicy="no-referrer"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setNewPost({ ...newPost, image_url: '' })}
+                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-red-500 font-bold transition-all text-xs"
+                              >
+                                삭제
+                              </button>
+                            </div>
+                            <div className="text-xs text-white/40 leading-relaxed">
+                              <p className="font-semibold text-emerald-400">✅ 이미지 로드 완료</p>
+                              <p className="mt-1">등록하거나 수정을 완료하면 클라우드에 영구 저장됩니다.</p>
+                            </div>
+                          </div>
+                        )}
+
+                        <div>
+                          <input 
+                            type="text" 
+                            placeholder="또는 직접 이미지 웹 주소(URL) 입력" 
+                            className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3"
+                            value={newPost.image_url} 
+                            onChange={(e) => setNewPost({...newPost, image_url: e.target.value})}
+                          />
+                          <p className="text-xs text-white/40 mt-1.5 pl-1">소개 이미지의 웹 주소(URL)를 입력하거나 직접 파일을 올릴 수 있습니다.</p>
+                        </div>
                       </div>
                     ) : (
                       <div>
@@ -1452,7 +1595,7 @@ export default function App() {
                 content: p.content,
                 image_url: p.image_url || '',
                 created_at: p.created_at || new Date().toISOString()
-              });
+              }, String(p.id));
             }
             console.log("Seeded default posts to Firebase");
             // Refetch to get correct Firebase IDs
