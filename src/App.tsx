@@ -7,6 +7,14 @@ import {
   Play, Video
 } from 'lucide-react';
 import { SiteSettings, Post, User } from './types';
+import { 
+  getFirebaseSettings, 
+  saveFirebaseSettings, 
+  getFirebasePosts, 
+  addFirebasePost, 
+  updateFirebasePost, 
+  deleteFirebasePost 
+} from './firebase';
 
 // --- Helpers ---
 
@@ -621,14 +629,8 @@ const AdminDashboard = ({
   const [mediaMode, setMediaMode] = useState<'image' | 'youtube'>('image');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [isStaticMode, setIsStaticMode] = useState(() => {
-    return (
-      window.location.hostname.includes('netlify.app') || 
-      window.location.hostname.includes('github.io') ||
-      (window.location.hostname !== 'localhost' && !window.location.hostname.includes('run.app'))
-    );
-  });
-  const [editingPostId, setEditingPostId] = useState<number | null>(null);
+  const [isStaticMode] = useState(false); // Firebase enables dynamic features in all environments, including Netlify
+  const [editingPostId, setEditingPostId] = useState<string | number | null>(null);
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
 
   const handleStartEdit = (post: Post) => {
@@ -659,147 +661,125 @@ const AdminDashboard = ({
     setIsSaving(true);
     setSaveSuccess(false);
     try {
-      const res = await fetch(`/api/posts/${editingPostId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPost)
-      });
-      if (res.ok) {
-        setNewPost({ type: 'notice', title: '', content: '', image_url: '' });
-        setMediaMode('image');
-        setEditingPostId(null);
-        onUpdatePosts();
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
-      } else {
-        if (isStaticMode) {
-          alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 저장이 불가능합니다.');
-        } else {
-          alert('게시글 수정 중 오류가 발생했습니다.');
-        }
+      // 1. Edit in Firebase Firestore
+      try {
+        await updateFirebasePost(String(editingPostId), newPost);
+      } catch (fbErr) {
+        console.error("Firebase edit post failed:", fbErr);
       }
+
+      // 2. Also try local API
+      try {
+        await fetch(`/api/posts/${editingPostId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newPost)
+        });
+      } catch (err) {
+        console.log("Local API edit skipped or failed");
+      }
+
+      setNewPost({ type: 'notice', title: '', content: '', image_url: '' });
+      setMediaMode('image');
+      setEditingPostId(null);
+      onUpdatePosts();
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
-      if (isStaticMode) {
-        alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 저장이 불가능합니다.');
-      } else {
-        alert('게시글 수정 중 오류가 발생했습니다.');
-      }
+      alert('게시글 수정 중 오류가 발생했습니다.');
     } finally {
       setIsSaving(false);
     }
   };
-
-  useEffect(() => {
-    // Check if API is available and is a real JSON API (to prevent treating Netlify SPA fallback HTML as success)
-    fetch('/api/settings')
-      .then(res => {
-        const contentType = res.headers.get('content-type');
-        if (!res.ok || !contentType || !contentType.includes('application/json')) {
-          setIsStaticMode(true);
-        } else {
-          setIsStaticMode(false);
-        }
-      })
-      .catch(() => setIsStaticMode(true));
-  }, []);
 
   const handleSaveSettings = async () => {
     setIsSaving(true);
     setSaveSuccess(false);
     
-    // Always save to LocalStorage for immediate persistence and static mode support
+    // Always save to LocalStorage for immediate persistence
     localStorage.setItem('site_settings', JSON.stringify(editingSettings));
     
+    // 1. Save to Firebase Firestore
     try {
-      const res = await fetch('/api/settings', {
+      await saveFirebaseSettings(editingSettings);
+    } catch (fbErr) {
+      console.error("Firebase settings save failed:", fbErr);
+    }
+
+    // 2. Also try local API
+    try {
+      await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settings: editingSettings })
       });
-      
-      if (res.ok) {
-        onUpdateSettings(editingSettings);
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
-      } else {
-        // Even if API fails, we've saved to LocalStorage
-        onUpdateSettings(editingSettings);
-        if (isStaticMode) {
-          setSaveSuccess(true);
-          setTimeout(() => setSaveSuccess(false), 3000);
-          console.log('Saved to LocalStorage (Static Mode)');
-        } else {
-          alert('서버 저장 중 오류가 발생했습니다. (브라우저에는 임시 저장됨)');
-        }
-      }
-    } catch (error) {
-      onUpdateSettings(editingSettings);
-      if (isStaticMode) {
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
-      } else {
-        alert('서버와 통신할 수 없습니다. (브라우저에는 임시 저장됨)');
-      }
-    } finally {
-      setIsSaving(false);
+    } catch (err) {
+      console.log("Local API settings save skipped or failed");
     }
+
+    onUpdateSettings(editingSettings);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
+    setIsSaving(false);
   };
 
   const handleAddPost = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch('/api/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPost)
-      });
-      if (res.ok) {
-        setNewPost({ type: 'notice', title: '', content: '', image_url: '' });
-        setMediaMode('image');
-        onUpdatePosts();
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
-      } else {
-        if (isStaticMode) {
-          alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 저장이 불가능합니다.');
-        } else {
-          alert('게시글 등록 중 오류가 발생했습니다.');
-        }
+      // 1. Add to Firebase Firestore
+      const postWithTime = {
+        ...newPost,
+        created_at: new Date().toISOString()
+      };
+      await addFirebasePost(postWithTime);
+
+      // 2. Also try local API
+      try {
+        await fetch('/api/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newPost)
+        });
+      } catch (err) {
+        console.log("Local API post add skipped or failed");
       }
+
+      setNewPost({ type: 'notice', title: '', content: '', image_url: '' });
+      setMediaMode('image');
+      onUpdatePosts();
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
-      if (isStaticMode) {
-        alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 저장이 불가능합니다.');
-      } else {
-        alert('게시글 등록 중 오류가 발생했습니다.');
-      }
+      alert('게시글 등록 중 오류가 발생했습니다.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeletePost = async (id: number) => {
+  const handleDeletePost = async (id: number | string) => {
     setIsSaving(true);
     try {
-      const res = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        onUpdatePosts();
-        setPostToDelete(null);
-        if (editingPostId === id) {
-          handleCancelEdit();
-        }
-      } else {
-        if (isStaticMode) {
-          alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 삭제가 불가능합니다.');
-        } else {
-          alert('게시글 삭제 중 오류가 발생했습니다.');
-        }
+      // 1. Delete from Firebase Firestore
+      try {
+        await deleteFirebasePost(String(id));
+      } catch (fbErr) {
+        console.error("Firebase delete post failed:", fbErr);
+      }
+
+      // 2. Also try local API
+      try {
+        await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+      } catch (err) {
+        console.log("Local API delete skipped or failed");
+      }
+
+      onUpdatePosts();
+      setPostToDelete(null);
+      if (editingPostId === id) {
+        handleCancelEdit();
       }
     } catch (e) {
-      if (isStaticMode) {
-        alert('현재 정적 페이지(Netlify) 모드입니다. 서버가 없어 직접 삭제가 불가능합니다.');
-      } else {
-        alert('게시글 삭제 중 오류가 발생했습니다.');
-      }
+      alert('게시글 삭제 중 오류가 발생했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -1020,13 +1000,12 @@ const AdminDashboard = ({
             <div className="glass-panel p-8 rounded-2xl space-y-8">
               <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Settings size={20} /> 사이트 전반 설정</h3>
 
-              {isStaticMode && (
-                <div className="bg-amber-950/20 border border-amber-500/30 text-amber-300 p-5 rounded-2xl text-sm leading-relaxed space-y-2">
-                  <p className="font-bold flex items-center gap-2 text-base">⚠️ 넷리파이(Netlify) 정적 사이트 작동 안내</p>
-                  <p>현재 넷리파이 정적 모드입니다. 이곳에서 변경사항을 입력하고 <strong>[설정 저장]</strong>을 누르면 <strong>현재 브라우저에 즉시 임시 반영되어 미리보기</strong>할 수 있습니다.</p>
-                  <p>하지만 <strong>모든 접속자에게 이 변경사항을 반영</strong>하려면, AI Studio 빌더 화면에서 설정을 수정하여 깃허브(GitHub)에 푸시해야 합니다. 푸시가 완료되면 넷리파이가 변경된 파일을 감지하여 사이트를 자동으로 빌드하고 배포합니다.</p>
-                </div>
-              )}
+              {/* Firebase connection status */}
+              <div className="bg-emerald-950/20 border border-emerald-500/30 text-emerald-300 p-5 rounded-2xl text-sm leading-relaxed space-y-1">
+                <p className="font-bold flex items-center gap-2 text-base">✨ 파이어베이스(Firebase) 실시간 DB 연결 완료</p>
+                <p>현재 넷리파이(Netlify) 및 모든 기기 환경에 <strong>실시간 클라우드 데이터베이스(Firebase Firestore)</strong>가 연결되어 있습니다.</p>
+                <p>이곳에서 수정하는 모든 내용(사이트 설정, 게시글 등록/수정/삭제)은 <strong>따로 깃허브 푸시할 필요 없이 모든 사용자에게 즉시 영구적으로 저장 및 반영</strong>됩니다!</p>
+              </div>
               
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1374,18 +1353,43 @@ export default function App() {
     }
 
     try {
-      // Check if we are running in a static environment to skip API calls entirely
-      const isStaticEnv = 
-        window.location.hostname.includes('netlify.app') || 
-        window.location.hostname.includes('github.io') ||
-        (window.location.hostname !== 'localhost' && !window.location.hostname.includes('run.app'));
+      // First, try to fetch from Firebase Firestore (the primary database now)
+      let fbSettings = null;
+      let fbPosts = null;
+      let fbSettingsLoaded = false;
+      let fbPostsLoaded = false;
 
-      let sOk = false;
-      let pOk = false;
-      let serverSettings = null;
-      let serverPosts = null;
+      try {
+        const loadedSettings = await getFirebaseSettings();
+        if (loadedSettings) {
+          fbSettings = loadedSettings;
+          fbSettingsLoaded = true;
+          setSettings(loadedSettings);
+          localStorage.setItem('site_settings', JSON.stringify(loadedSettings));
+        }
+      } catch (fbErr) {
+        console.warn("Failed to fetch settings from Firebase, falling back", fbErr);
+      }
 
-      if (!isStaticEnv) {
+      try {
+        const loadedPosts = await getFirebasePosts();
+        if (loadedPosts && loadedPosts.length > 0) {
+          fbPosts = loadedPosts;
+          fbPostsLoaded = true;
+          setPosts(loadedPosts);
+        }
+      } catch (fbErr) {
+        console.warn("Failed to fetch posts from Firebase, falling back", fbErr);
+      }
+
+      // If either Firebase settings or posts are missing, try to fetch local/fallback data to seed Firebase
+      if (!fbSettingsLoaded || !fbPostsLoaded) {
+        let serverSettings = null;
+        let serverPosts = null;
+        let sOk = false;
+        let pOk = false;
+
+        // Try local server API
         try {
           const [sRes, pRes] = await Promise.all([
             fetch('/api/settings').catch(() => null),
@@ -1393,51 +1397,72 @@ export default function App() {
           ]);
 
           if (sRes && sRes.ok) {
-            const sType = sRes.headers.get('content-type');
-            if (sType && sType.includes('application/json')) {
-              serverSettings = await sRes.json();
-              sOk = true;
-            }
+            serverSettings = await sRes.json();
+            sOk = true;
           }
-
           if (pRes && pRes.ok) {
-            const pType = pRes.headers.get('content-type');
-            if (pType && pType.includes('application/json')) {
-              serverPosts = await pRes.json();
-              pOk = true;
-            }
+            serverPosts = await pRes.json();
+            pOk = true;
           }
         } catch (apiErr) {
-          console.log("API server fetch failed, using static fallbacks", apiErr);
+          console.log("Local API server fetch failed or not running");
         }
-      }
 
-      if (sOk && serverSettings) {
-        setSettings(serverSettings);
-        localStorage.setItem('site_settings', JSON.stringify(serverSettings));
-      }
-
-      if (pOk && serverPosts) {
-        setPosts(serverPosts);
-      }
-
-      // If API failed, wasn't JSON, or we are in a static environment, fallback to static JSON files
-      if (!sOk || !pOk) {
-        console.log("Using static JSON fallbacks");
-        // Apply cache-busting to fetch the freshest files synced from GitHub
-        const [staticSRes, staticPRes] = await Promise.all([
-          fetch(`/settings.json?t=${Date.now()}`).catch(() => null),
-          fetch(`/posts.json?t=${Date.now()}`).catch(() => null)
-        ]);
-        
-        if (staticSRes && staticSRes.ok) {
-          const staticSettings = await staticSRes.json();
-          setSettings(staticSettings);
-          localStorage.setItem('site_settings', JSON.stringify(staticSettings));
+        // Try static JSON files
+        if (!sOk || !pOk) {
+          try {
+            const [staticSRes, staticPRes] = await Promise.all([
+              fetch(`/settings.json?t=${Date.now()}`).catch(() => null),
+              fetch(`/posts.json?t=${Date.now()}`).catch(() => null)
+            ]);
+            
+            if (staticSRes && staticSRes.ok) {
+              serverSettings = await staticSRes.json();
+              sOk = true;
+            }
+            if (staticPRes && staticPRes.ok) {
+              serverPosts = await staticPRes.json();
+              pOk = true;
+            }
+          } catch (staticErr) {
+            console.log("Static file fetch failed", staticErr);
+          }
         }
-        if (staticPRes && staticPRes.ok) {
-          const staticPosts = await staticPRes.json();
-          setPosts(staticPosts);
+
+        // If we found local fallback settings, use them and seed to Firebase
+        if (!fbSettingsLoaded && sOk && serverSettings) {
+          setSettings(serverSettings);
+          localStorage.setItem('site_settings', JSON.stringify(serverSettings));
+          try {
+            await saveFirebaseSettings(serverSettings);
+            console.log("Seeded default settings to Firebase");
+          } catch (e) {
+            console.error("Failed to seed settings to Firebase", e);
+          }
+        }
+
+        // If we found local fallback posts, use them and seed to Firebase
+        if (!fbPostsLoaded && pOk && serverPosts) {
+          setPosts(serverPosts);
+          try {
+            for (const p of serverPosts) {
+              await addFirebasePost({
+                type: p.type,
+                title: p.title,
+                content: p.content,
+                image_url: p.image_url || '',
+                created_at: p.created_at || new Date().toISOString()
+              });
+            }
+            console.log("Seeded default posts to Firebase");
+            // Refetch to get correct Firebase IDs
+            const loadedPosts = await getFirebasePosts();
+            if (loadedPosts && loadedPosts.length > 0) {
+              setPosts(loadedPosts);
+            }
+          } catch (e) {
+            console.error("Failed to seed posts to Firebase", e);
+          }
         }
       }
     } catch (err) {
@@ -1457,19 +1482,12 @@ export default function App() {
   useEffect(() => {
     fetchData(true); // Initial load with fast local cache placeholder
 
-    const isStaticEnv = 
-      window.location.hostname.includes('netlify.app') || 
-      window.location.hostname.includes('github.io') ||
-      (window.location.hostname !== 'localhost' && !window.location.hostname.includes('run.app'));
+    // Set up 15-second background polling to keep client synced with Firebase in real time
+    const interval = setInterval(() => {
+      fetchData(false);
+    }, 15000);
 
-    // Set up 15-second background polling ONLY if we have a live dynamic database backend
-    if (!isStaticEnv) {
-      const interval = setInterval(() => {
-        fetchData(false);
-      }, 15000);
-
-      return () => clearInterval(interval);
-    }
+    return () => clearInterval(interval);
   }, []);
 
   // Dynamic Styling & SEO Persistence

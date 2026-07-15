@@ -29,7 +29,7 @@ export interface SiteSettings {
 }
 
 export interface Post {
-  id: number;
+  id: number | string;
   type: 'notice' | 'product' | 'portfolio';
   title: string;
   content: string;

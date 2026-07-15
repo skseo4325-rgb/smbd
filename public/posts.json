@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "id": 1,
+    "type": "portfolio",
+    "title": "Ø22.3 * 1.1T * R60 허들",
+    "content": "Ø22.3 * 1.1T * R60 허들 가공 작업 결과물입니다.",
+    "image_url": "https://i.postimg.cc/0QjMzLZ4/Kakao-Talk-20260714-182350104.jpg",
+    "created_at": "2026-07-15T04:39:58Z"
+  }
+]
