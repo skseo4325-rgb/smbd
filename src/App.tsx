@@ -213,26 +213,119 @@ const Services = ({ settings }: { settings: SiteSettings }) => {
 
 const extractYoutubeId = (url: string = "") => {
   if (!url) return null;
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-  const match = url.match(regExp);
-  return (match && match[2].length === 11) ? match[2] : null;
+  const trimmed = url.trim();
+  const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/;
+  const match = trimmed.match(regExp);
+  return (match && match[1]) ? match[1] : null;
+};
+
+interface YouTubeEmbedPlayerProps {
+  urlOrId: string;
+  className?: string;
+  title?: string;
+}
+
+const YouTubeEmbedPlayer = ({ urlOrId, className = '', title = 'YouTube video' }: YouTubeEmbedPlayerProps) => {
+  const videoId = extractYoutubeId(urlOrId) || urlOrId;
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [thumbnailUrl, setThumbnailUrl] = useState('');
+
+  useEffect(() => {
+    if (videoId) {
+      setThumbnailUrl(`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`);
+      setIsPlaying(false);
+    }
+  }, [videoId]);
+
+  if (!videoId || videoId.length !== 11) return null;
+
+  return (
+    <div 
+      className={`relative w-full overflow-hidden bg-zinc-950 group shadow-xl rounded-xl border border-white/5 ${className}`}
+      style={{ aspectRatio: '16/9' }}
+    >
+      {isPlaying ? (
+        <iframe
+          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
+          title={title}
+          className="w-full h-full border-0 absolute inset-0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+        ></iframe>
+      ) : (
+        <div 
+          onClick={() => setIsPlaying(true)}
+          className="absolute inset-0 w-full h-full cursor-pointer overflow-hidden flex items-center justify-center group"
+        >
+          <img
+            src={thumbnailUrl || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+            alt={title}
+            className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+            referrerPolicy="no-referrer"
+            onError={() => {
+              if (thumbnailUrl && !thumbnailUrl.includes('hqdefault')) {
+                setThumbnailUrl(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
+              }
+            }}
+          />
+          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/45 transition-colors duration-300"></div>
+          
+          {/* Blue point color Play button icon in the center */}
+          <div className="absolute z-10 w-16 h-16 bg-[#3b82f6] hover:bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl group-hover:scale-110 active:scale-95 transition-all duration-300">
+            <Play size={28} className="ml-1 fill-white text-white" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 const Portfolio = ({ posts }: { posts: Post[] }) => {
-  const portfolioItems = posts.filter(p => p.type === 'portfolio');
+  const [activeTab, setActiveTab] = useState<'all' | 'portfolio' | 'product' | 'notice'>('all');
   const [selectedItem, setSelectedItem] = useState<Post | null>(null);
+
+  const tabs = [
+    { id: 'all', label: '전체 보기' },
+    { id: 'portfolio', label: '포트폴리오' },
+    { id: 'product', label: '제품 소개' },
+    { id: 'notice', label: '공지사항' }
+  ] as const;
+
+  const filteredItems = posts.filter(p => {
+    if (activeTab === 'all') return true;
+    return p.type === activeTab;
+  });
   
   return (
     <section id="portfolio" className="py-24 bg-black">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="mb-16">
-          <span className="text-primary font-mono text-sm mb-2 block">02 / PORTFOLIO</span>
-          <h2 className="text-4xl md:text-6xl font-bold tracking-tighter">작업 결과물</h2>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-6">
+          <div>
+            <span className="text-primary font-mono text-sm mb-2 block">02 / PORTFOLIO & BOARDS</span>
+            <h2 className="text-4xl md:text-6xl font-bold tracking-tighter">작업 및 소식</h2>
+          </div>
+          
+          {/* Tab buttons */}
+          <div className="flex flex-wrap gap-2 bg-zinc-900/50 p-1.5 rounded-xl border border-white/5">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-primary text-white shadow-lg shadow-primary/25'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {portfolioItems.length > 0 ? (
-            portfolioItems.map((item) => {
+          {filteredItems.length > 0 ? (
+            filteredItems.map((item) => {
               const youtubeId = extractYoutubeId(item.image_url) || extractYoutubeId(item.content);
               const hasVideo = !!youtubeId;
               const thumbnailSrc = youtubeId 
@@ -246,7 +339,7 @@ const Portfolio = ({ posts }: { posts: Post[] }) => {
                   className="relative aspect-square overflow-hidden group rounded-lg bg-zinc-900 cursor-pointer border border-white/5"
                 >
                   <img 
-                    src={thumbnailSrc} 
+                    src={thumbnailSrc || `https://picsum.photos/seed/${item.id}/800/800`} 
                     alt={item.title} 
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                     referrerPolicy="no-referrer"
@@ -265,21 +358,24 @@ const Portfolio = ({ posts }: { posts: Post[] }) => {
                   {/* Play icon inside card on hover */}
                   {hasVideo && (
                     <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center opacity-85 group-hover:opacity-100 group-hover:scale-110 transition-all z-10 pointer-events-none">
-                      <div className="w-16 h-16 bg-red-600/90 text-white rounded-full flex items-center justify-center shadow-lg group-hover:bg-red-600 transition-colors">
+                      <div className="w-16 h-16 bg-[#3b82f6]/95 text-white rounded-full flex items-center justify-center shadow-lg group-hover:bg-[#3b82f6] transition-all">
                         <Play size={28} className="ml-1 fill-white" />
                       </div>
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-6 text-center z-20">
+                  <div className="absolute inset-0 bg-primary/85 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-6 text-center z-20">
                     {hasVideo && (
                       <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mb-4">
                         <Play size={20} className="ml-0.5 text-white fill-white" />
                       </div>
                     )}
+                    <span className="text-[10px] bg-white/20 text-white font-mono px-2 py-0.5 rounded uppercase tracking-widest mb-2 font-semibold">
+                      {item.type === 'portfolio' ? '포트폴리오' : item.type === 'product' ? '제품 소개' : '공지사항'}
+                    </span>
                     <h3 className="text-xl font-bold mb-2">{item.title}</h3>
                     <p className="text-sm line-clamp-3">{item.content.replace(/https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s]+/g, '').trim()}</p>
-                    <span className="text-xs text-white/60 mt-4 underline font-medium">
+                    <span className="text-xs text-white/80 mt-4 underline font-semibold">
                       {hasVideo ? '동영상 재생하기' : '자세히 보기'}
                     </span>
                   </div>
@@ -288,7 +384,7 @@ const Portfolio = ({ posts }: { posts: Post[] }) => {
             })
           ) : (
             <div className="col-span-full py-20 text-center text-white/30 border border-dashed border-white/10 rounded-xl">
-              등록된 포트폴리오가 없습니다. 관리자 페이지에서 추가해주세요.
+              등록된 항목이 없습니다. 관리자 페이지에서 추가해주세요.
             </div>
           )}
         </div>
@@ -325,13 +421,13 @@ const Portfolio = ({ posts }: { posts: Post[] }) => {
                     const youtubeId = extractYoutubeId(selectedItem.image_url) || extractYoutubeId(selectedItem.content);
                     if (youtubeId) {
                       return (
-                        <iframe 
-                          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`}
-                          title={selectedItem.title}
-                          className="w-full h-full border-0 absolute inset-0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                        ></iframe>
+                        <div className="w-full h-full flex items-center justify-center p-4">
+                          <YouTubeEmbedPlayer 
+                            urlOrId={youtubeId} 
+                            title={selectedItem.title} 
+                            className="w-full shadow-2xl" 
+                          />
+                        </div>
                       );
                     } else {
                       return (
@@ -352,7 +448,9 @@ const Portfolio = ({ posts }: { posts: Post[] }) => {
                 {/* Details Section */}
                 <div className="w-full lg:w-80 p-6 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-white/10 bg-zinc-950">
                   <div className="overflow-y-auto max-h-[200px] lg:max-h-none mb-6">
-                    <span className="text-primary font-mono text-xs uppercase tracking-wider mb-2 block">Portfolio Project</span>
+                    <span className="text-primary font-mono text-xs uppercase tracking-wider mb-2 block">
+                      {selectedItem.type === 'portfolio' ? 'Portfolio Project' : selectedItem.type === 'product' ? 'Product Intro' : 'Notice'}
+                    </span>
                     <h3 className="text-2xl font-bold tracking-tight mb-4 text-white line-clamp-2">{selectedItem.title}</h3>
                     <p className="text-white/70 text-sm leading-relaxed whitespace-pre-wrap">
                       {selectedItem.content.replace(/https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s]+/g, '').trim()}
@@ -1030,7 +1128,7 @@ const AdminDashboard = ({
                         </div>
                       </div>
                     ) : (
-                      <div>
+                      <div className="space-y-4">
                         <input 
                           type="text" 
                           placeholder="유튜브 동영상 주소 (예: https://www.youtube.com/watch?v=...)" 
@@ -1038,6 +1136,18 @@ const AdminDashboard = ({
                           value={newPost.image_url} 
                           onChange={(e) => setNewPost({...newPost, image_url: e.target.value})}
                         />
+                        
+                        {/* Real-time YouTube Player Preview */}
+                        {extractYoutubeId(newPost.image_url) && (
+                          <div className="bg-zinc-950 p-4 rounded-xl border border-white/5 space-y-2">
+                            <span className="text-xs text-white/40 block font-semibold flex items-center gap-1.5">
+                              <Play size={12} className="text-blue-400 fill-blue-400" />
+                              실시간 비디오 플레이어 미리보기 (가로 폭 100%, 16:9 반응형 비율 적용)
+                            </span>
+                            <YouTubeEmbedPlayer urlOrId={newPost.image_url} title="관리자 미리보기" />
+                          </div>
+                        )}
+
                         <div className="text-xs text-red-400 mt-2 flex items-start gap-1.5 bg-red-950/20 border border-red-900/40 p-2.5 rounded-lg leading-relaxed">
                           <Video size={16} className="mt-0.5 shrink-0" />
                           <span>유튜브 동영상 주소를 직접 입력하시면 해당 영상의 썸네일이 자동으로 설정되며, 포트폴리오 섹션에서 즉시 동영상 재생이 가능한 한글 지원 전용 플레이어가 활성화됩니다.</span>
